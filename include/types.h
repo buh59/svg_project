@@ -38,6 +38,11 @@ typedef struct shape_s {
   int id;
   shape_type_t type;
 
+  // Pointeurs de Liste Doublement Chaînée
+  struct shape_s *prev;   // Frère précédent (même niveau)
+  struct shape_s *next;   // Frère suivant (même niveau)
+  struct shape_s *parent; // Parent (groupe)
+
   union {
     struct {
       int cx, cy, r;
@@ -61,8 +66,8 @@ typedef struct shape_s {
       size_t count;
     } path;
     struct {
-      struct shape_s **children;
-      size_t count;
+      struct shape_s *head; // Premier enfant
+      struct shape_s *tail; // Dernier enfant
     } group;
   } data;
 
@@ -73,9 +78,9 @@ typedef struct shape_s {
 typedef struct scene_s {
   int view_width;
   int view_height;
-  shape_t **elements;
-  size_t element_count;
-  size_t capacity;
+  shape_t *head;        // Première forme dans la scène
+  shape_t *tail;        // Dernière forme dans la scène
+  size_t element_count; // Maintenu pour l'attribution des ID
   int next_id;
 } scene_t;
 
