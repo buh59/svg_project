@@ -20,6 +20,14 @@ extern shape_t *create_circle(scene_t *scene, int cx, int cy, int r,
                               char *color_stroke, char *color_fill);
 extern shape_t *create_line(scene_t *scene, int x1, int y1, int x2, int y2,
                             char *color_stroke, char *color_fill);
+extern shape_t *create_ellipse(scene_t *scene, int cx, int cy, int rx, int ry,
+                               char *color_stroke, char *color_fill);
+extern shape_t *create_polyline(scene_t *scene, char *color_stroke,
+                                char *color_fill);
+extern bool add_point_to_polyline(shape_t *shape, int x, int y);
+extern shape_t *create_polygon(scene_t *scene, char *color_stroke,
+                               char *color_fill);
+extern bool add_point_to_polygon(shape_t *shape, int x, int y);
 
 void print_scene(scene_t *scene) {
   printf("--- ETAT DE LA SCENE ---\n");
@@ -39,11 +47,25 @@ void print_scene(scene_t *scene) {
              curr->id, curr->data.circle.cx, curr->data.circle.cy,
              curr->data.circle.r, curr->style.color_stroke,
              curr->style.color_fill);
+    } else if (curr->type == ELLIPSE) {
+      printf(
+          "[ID: %d] ELLIPSE - Center(%d,%d) Radii(%d,%d) Stroke:%s Fill:%s\n",
+          curr->id, curr->data.ellipse.cx, curr->data.ellipse.cy,
+          curr->data.ellipse.rx, curr->data.ellipse.ry,
+          curr->style.color_stroke, curr->style.color_fill);
     } else if (curr->type == LINE) {
       printf("[ID: %d] LINE - P1(%d,%d) P2(%d,%d) Stroke:%s Fill:%s\n",
              curr->id, curr->data.line.p1.x, curr->data.line.p1.y,
              curr->data.line.p2.x, curr->data.line.p2.y,
              curr->style.color_stroke, curr->style.color_fill);
+    } else if (curr->type == POLYLINE) {
+      printf("[ID: %d] POLYLINE - %zu points Stroke:%s Fill:%s\n", curr->id,
+             curr->data.polyline.count, curr->style.color_stroke,
+             curr->style.color_fill);
+    } else if (curr->type == POLYGON) {
+      printf("[ID: %d] POLYGON - %zu points Stroke:%s Fill:%s\n", curr->id,
+             curr->data.polygon.count, curr->style.color_stroke,
+             curr->style.color_fill);
     }
     curr = curr->next;
   }
@@ -109,6 +131,70 @@ int main(void) {
         printf(
             "> Erreur syntaxe. Usage: create line x1 y1 x2 y2 stroke fill\n");
       }
+    } else if (strncmp(input, "create polyline", 15) == 0) {
+      char stroke[10], fill[10];
+      if (sscanf(input, "create polyline %9s %9s", stroke, fill) == 2) {
+        shape_t *poly = create_polyline(scene, stroke, fill);
+        if (poly != NULL) {
+          add_shape_to_scene(scene, poly);
+          printf("> Polyline creee avec l'ID %d. Utilisez 'add_point ID x y' "
+                 "pour ajouter des points.\n",
+                 poly->id);
+        }
+      } else {
+        printf("> Erreur syntaxe. Usage: create polyline stroke fill\n");
+      }
+    } else if (strncmp(input, "create polygon", 14) == 0) {
+      char stroke[10], fill[10];
+      if (sscanf(input, "create polygon %9s %9s", stroke, fill) == 2) {
+        shape_t *poly = create_polygon(scene, stroke, fill);
+        if (poly != NULL) {
+          add_shape_to_scene(scene, poly);
+          printf("> Polygon cree avec l'ID %d. Utilisez 'add_point ID x y' "
+                 "pour ajouter des points.\n",
+                 poly->id);
+        }
+      } else {
+        printf("> Erreur syntaxe. Usage: create polygon stroke fill\n");
+      }
+    } else if (strncmp(input, "add_point", 9) == 0) {
+      int id, x, y;
+      if (sscanf(input, "add_point %d %d %d", &id, &x, &y) == 3) {
+        shape_t *s = find_shape_by_id(scene->head, id);
+        if (s && (s->type == POLYLINE || s->type == POLYGON)) {
+          bool success = false;
+          if (s->type == POLYLINE) {
+            success = add_point_to_polyline(s, x, y);
+          } else {
+            success = add_point_to_polygon(s, x, y);
+          }
+          if (success) {
+            printf("> Point (%d,%d) ajoute (Total: %zu points).\n", x, y,
+                   s->data.polyline.count);
+          } else {
+            printf("> Erreur lors de l'ajout du point.\n");
+          }
+        } else {
+          printf("> ID %d introuvable ou n'est pas une polyline/polygon.\n",
+                 id);
+        }
+      } else {
+        printf("> Erreur syntaxe. Usage: add_point ID x y\n");
+      }
+    } else if (strncmp(input, "create ellipse", 14) == 0) {
+      int cx, cy, rx, ry;
+      char stroke[10], fill[10];
+      if (sscanf(input, "create ellipse %d %d %d %d %9s %9s", &cx, &cy, &rx,
+                 &ry, stroke, fill) == 6) {
+        shape_t *ell = create_ellipse(scene, cx, cy, rx, ry, stroke, fill);
+        if (ell != NULL) {
+          add_shape_to_scene(scene, ell);
+          printf("> Ellipse creee avec l'ID %d.\n", ell->id);
+        }
+      } else {
+        printf("> Erreur syntaxe. Usage: create ellipse cx cy rx ry stroke "
+               "fill\n");
+      }
     } else if (strncmp(input, "create rect", 11) == 0) {
       int x, y, w, h;
       char stroke[10], fill[10];
@@ -121,6 +207,21 @@ int main(void) {
         }
       } else {
         printf("> Erreur syntaxe. Usage: create rect x y w h stroke fill\n");
+      }
+    } else if (strncmp(input, "create square", 13) == 0) {
+      int x, y, size;
+      char stroke[10], fill[10];
+      // On parse 5 arguments au lieu de 6
+      if (sscanf(input, "create square %d %d %d %9s %9s", &x, &y, &size, stroke,
+                 fill) == 5) {
+        // On appelle create_rectangle avec width = height = size !
+        shape_t *sq = create_rectangle(scene, x, y, size, size, stroke, fill);
+        if (sq != NULL) {
+          add_shape_to_scene(scene, sq);
+          printf("> Carre cree avec l'ID %d.\n", sq->id);
+        }
+      } else {
+        printf("> Erreur syntaxe. Usage: create square x y size stroke fill\n");
       }
     } else if (strncmp(input, "create circle", 13) == 0) {
       int cx, cy, r;

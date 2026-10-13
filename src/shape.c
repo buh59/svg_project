@@ -90,14 +90,31 @@ void free_shape(shape_t *shape) {
 
   // 2. Libérer les données dynamiques spécifiques à certaines formes (tableaux
   // de points)
+  // 2. Libérer les données dynamiques spécifiques à certaines formes
   if (type == POLYLINE || type == POLYGON || type == PATH) {
-    if (type == POLYLINE && shape->data.polyline.points != NULL) {
-      free(shape->data.polyline.points);
-    } else if (type == POLYGON && shape->data.polygon.points != NULL) {
-      free(shape->data.polygon.points);
-    } else if (type == PATH && shape->data.path.points != NULL) {
-      free(shape->data.path.points);
+    if (type == POLYLINE) {
+      point_node_t *current = shape->data.polyline.head;
+      point_node_t *next;
+      while (current != NULL) {
+        next = current->next;
+        free(current);
+        current = next;
+      }
+      shape->data.polyline.head = NULL;
+      shape->data.polyline.tail = NULL;
     }
+    if (type == POLYGON) {
+      point_node_t *current = shape->data.polygon.head;
+      point_node_t *next;
+      while (current != NULL) {
+        next = current->next;
+        free(current);
+        current = next;
+      }
+      shape->data.polygon.head = NULL;
+      shape->data.polygon.tail = NULL;
+    }
+    // (Même logique pour POLYGON et PATH plus tard)
   }
 
   // 3. Libérer la structure principale de la forme
@@ -185,6 +202,96 @@ shape_t *create_rectangle(scene_t *scene, int x, int y, int width, int height,
   shape->data.rect.y = y;
   shape->data.rect.width = width;
   shape->data.rect.height = height;
+
+  return shape;
+}
+
+shape_t *create_polyline(scene_t *scene, char *color_stroke, char *color_fill) {
+  shape_t *shape = create_base_shape(scene, POLYLINE, color_stroke, color_fill);
+  if (shape == NULL)
+    return NULL;
+
+  // Initialisation de la liste chaînée de points
+  shape->data.polyline.head = NULL;
+  shape->data.polyline.tail = NULL;
+  shape->data.polyline.count = 0;
+
+  return shape;
+}
+
+bool add_point_to_polyline(shape_t *shape, int x, int y) {
+  if (shape == NULL || shape->type != POLYLINE)
+    return false;
+
+  // Créer un nouveau nœud de point
+  point_node_t *new_node = malloc(sizeof(point_node_t));
+  if (new_node == NULL) {
+    fprintf(stderr, "Erreur: échec de l'allocation mémoire pour le point.\n");
+    return false;
+  }
+
+  new_node->p.x = x;
+  new_node->p.y = y;
+  new_node->next = NULL;
+
+  // Ajouter à la liste chaînée
+  if (shape->data.polyline.tail == NULL) {
+    // Liste vide
+    shape->data.polyline.head = new_node;
+    shape->data.polyline.tail = new_node;
+  } else {
+    // Ajouter à la fin
+    shape->data.polyline.tail->next = new_node;
+    shape->data.polyline.tail = new_node;
+  }
+
+  shape->data.polyline.count++;
+  return true;
+}
+
+shape_t *create_polygon(scene_t *scene, char *color_stroke, char *color_fill) {
+  shape_t *shape = create_base_shape(scene, POLYGON, color_stroke, color_fill);
+  if (shape == NULL)
+    return NULL;
+  shape->data.polygon.head = NULL;
+  shape->data.polygon.tail = NULL;
+  shape->data.polygon.count = 0;
+  return shape;
+}
+
+bool add_point_to_polygon(shape_t *shape, int x, int y) {
+  if (shape == NULL || shape->type != POLYGON)
+    return false;
+
+  point_node_t *new_node = malloc(sizeof(point_node_t));
+  if (new_node == NULL)
+    return false;
+
+  new_node->p.x = x;
+  new_node->p.y = y;
+  new_node->next = NULL;
+
+  if (shape->data.polygon.tail == NULL) {
+    shape->data.polygon.head = new_node;
+    shape->data.polygon.tail = new_node;
+  } else {
+    shape->data.polygon.tail->next = new_node;
+    shape->data.polygon.tail = new_node;
+  }
+  shape->data.polygon.count++;
+  return true;
+}
+
+shape_t *create_ellipse(scene_t *scene, int cx, int cy, int rx, int ry,
+                        char *color_stroke, char *color_fill) {
+  shape_t *shape = create_base_shape(scene, ELLIPSE, color_stroke, color_fill);
+  if (shape == NULL)
+    return NULL;
+
+  shape->data.ellipse.cx = cx;
+  shape->data.ellipse.cy = cy;
+  shape->data.ellipse.rx = rx;
+  shape->data.ellipse.ry = ry;
 
   return shape;
 }

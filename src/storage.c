@@ -13,6 +13,14 @@ extern shape_t *create_circle(scene_t *scene, int cx, int cy, int r,
                               char *color_stroke, char *color_fill);
 extern shape_t *create_line(scene_t *scene, int x1, int y1, int x2, int y2,
                             char *color_stroke, char *color_fill);
+extern shape_t *create_ellipse(scene_t *scene, int cx, int cy, int rx, int ry,
+                               char *color_stroke, char *color_fill);
+extern shape_t *create_polyline(scene_t *scene, char *color_stroke,
+                                char *color_fill);
+extern bool add_point_to_polyline(shape_t *shape, int x, int y);
+extern shape_t *create_polygon(scene_t *scene, char *color_stroke,
+                               char *color_fill);
+extern bool add_point_to_polygon(shape_t *shape, int x, int y);
 
 void save_project(scene_t *scene, const char *filename) {
   if (scene == NULL)
@@ -45,6 +53,52 @@ void save_project(scene_t *scene, const char *filename) {
               stroke, fill, curr->transform.move_x, curr->transform.move_y,
               curr->transform.angle, curr->transform.invert_x,
               curr->transform.invert_y);
+    } else if (curr->type == ELLIPSE) {
+      char stroke[20] = "none";
+      char fill[20] = "none";
+      if (curr->style.color_stroke[0] != '\0')
+        strcpy(stroke, curr->style.color_stroke);
+      if (curr->style.color_fill[0] != '\0')
+        strcpy(fill, curr->style.color_fill);
+
+      fprintf(f, "ELLIPSE %d %d %d %d %s %s %d %d %d %d %d\n",
+              curr->data.ellipse.cx, curr->data.ellipse.cy,
+              curr->data.ellipse.rx, curr->data.ellipse.ry, stroke, fill,
+              curr->transform.move_x, curr->transform.move_y,
+              curr->transform.angle, curr->transform.invert_x,
+              curr->transform.invert_y);
+    } else if (curr->type == POLYLINE) {
+      char stroke[20] = "none";
+      char fill[20] = "none";
+      if (curr->style.color_stroke[0] != '\0')
+        strcpy(stroke, curr->style.color_stroke);
+      if (curr->style.color_fill[0] != '\0')
+        strcpy(fill, curr->style.color_fill);
+
+      fprintf(f, "POLYLINE %s %s %zu", stroke, fill, curr->data.polyline.count);
+
+      point_node_t *pt = curr->data.polyline.head;
+      while (pt != NULL) {
+        fprintf(f, " %d,%d", pt->p.x, pt->p.y);
+        pt = pt->next;
+      }
+      fprintf(f, "\n");
+    } else if (curr->type == POLYGON) {
+      char stroke[20] = "none";
+      char fill[20] = "none";
+      if (curr->style.color_stroke[0] != '\0')
+        strcpy(stroke, curr->style.color_stroke);
+      if (curr->style.color_fill[0] != '\0')
+        strcpy(fill, curr->style.color_fill);
+
+      fprintf(f, "POLYGON %s %s %zu", stroke, fill, curr->data.polygon.count);
+
+      point_node_t *pt = curr->data.polygon.head;
+      while (pt != NULL) {
+        fprintf(f, " %d,%d", pt->p.x, pt->p.y);
+        pt = pt->next;
+      }
+      fprintf(f, "\n");
     } else if (curr->type == LINE) {
       char stroke[20] = "none";
       char fill[20] = "none";
@@ -119,6 +173,87 @@ scene_t *load_project(const char *filename) {
           rect->transform.invert_x = ix;
           rect->transform.invert_y = iy;
           add_shape_to_scene(new_scene, rect);
+        }
+      }
+    } else if (strncmp(line, "ELLIPSE", 7) == 0 && new_scene != NULL) {
+      int cx, cy, rx, ry, mx, my, angle, ix, iy;
+      char stroke[20], fill[20];
+      if (sscanf(line, "ELLIPSE %d %d %d %d %19s %19s %d %d %d %d %d", &cx, &cy,
+                 &rx, &ry, stroke, fill, &mx, &my, &angle, &ix, &iy) == 11) {
+
+        if (strcmp(stroke, "none") == 0)
+          stroke[0] = '\0';
+        if (strcmp(fill, "none") == 0)
+          fill[0] = '\0';
+
+        shape_t *ell = create_ellipse(new_scene, cx, cy, rx, ry, stroke, fill);
+        if (ell != NULL) {
+          ell->transform.move_x = mx;
+          ell->transform.move_y = my;
+          ell->transform.angle = angle;
+          ell->transform.invert_x = ix;
+          ell->transform.invert_y = iy;
+          add_shape_to_scene(new_scene, ell);
+        }
+      }
+    } else if (strncmp(line, "POLYLINE", 8) == 0 && new_scene != NULL) {
+      char stroke[20], fill[20];
+      size_t count;
+
+      // Parser les couleurs et le nombre de points
+      if (sscanf(line, "POLYLINE %19s %19s %zu", stroke, fill, &count) == 3) {
+        if (strcmp(stroke, "none") == 0)
+          stroke[0] = '\0';
+        if (strcmp(fill, "none") == 0)
+          fill[0] = '\0';
+
+        shape_t *poly = create_polyline(new_scene, stroke, fill);
+        if (poly != NULL) {
+          // Parser les points un par un
+          char *ptr = line + 8;       // Sauter "POLYLINE"
+          ptr = strchr(ptr, ' ');     // Sauter stroke
+          ptr = strchr(ptr + 1, ' '); // Sauter fill
+          ptr = strchr(ptr + 1, ' '); // Sauter count
+
+          for (size_t i = 0; i < count; i++) {
+            int x, y;
+            if (sscanf(ptr, " %d,%d", &x, &y) == 2) {
+              add_point_to_polyline(poly, x, y);
+              ptr = strchr(ptr, ' ');
+              if (ptr == NULL)
+                break;
+            }
+          }
+          add_shape_to_scene(new_scene, poly);
+        }
+      }
+    } else if (strncmp(line, "POLYGON", 7) == 0 && new_scene != NULL) {
+      char stroke[20], fill[20];
+      size_t count;
+
+      if (sscanf(line, "POLYGON %19s %19s %zu", stroke, fill, &count) == 3) {
+        if (strcmp(stroke, "none") == 0)
+          stroke[0] = '\0';
+        if (strcmp(fill, "none") == 0)
+          fill[0] = '\0';
+
+        shape_t *poly = create_polygon(new_scene, stroke, fill);
+        if (poly != NULL) {
+          char *ptr = line + 7;
+          ptr = strchr(ptr, ' ');
+          ptr = strchr(ptr + 1, ' ');
+          ptr = strchr(ptr + 1, ' ');
+
+          for (size_t i = 0; i < count; i++) {
+            int x, y;
+            if (sscanf(ptr, " %d,%d", &x, &y) == 2) {
+              add_point_to_polygon(poly, x, y);
+              ptr = strchr(ptr, ' ');
+              if (ptr == NULL)
+                break;
+            }
+          }
+          add_shape_to_scene(new_scene, poly);
         }
       }
     } else if (strncmp(line, "LINE", 4) == 0 && new_scene != NULL) {

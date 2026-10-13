@@ -21,6 +21,11 @@ typedef struct point_s {
   int y;
 } point_t;
 
+typedef struct point_node_s {
+  point_t p;
+  struct point_node_s *next;
+} point_node_t;
+
 typedef struct transformation_s {
   int move_x;
   int move_y;
@@ -48,17 +53,22 @@ typedef struct shape_s {
       int cx, cy, r;
     } circle;
     struct {
+      int cx, cy, rx, ry;
+    } ellipse;
+    struct {
       int x, y, width, height;
     } rect;
     struct {
       point_t p1, p2;
     } line;
     struct {
-      point_t *points;
+      struct point_node_s *head;
+      struct point_node_s *tail;
       size_t count;
     } polyline;
     struct {
-      point_t *points;
+      struct point_node_s *head;
+      struct point_node_s *tail;
       size_t count;
     } polygon;
     struct {
