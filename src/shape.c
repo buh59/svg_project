@@ -189,6 +189,33 @@ shape_t *create_rectangle(scene_t *scene, int x, int y, int width, int height,
   return shape;
 }
 
+shape_t *create_line(scene_t *scene, int x1, int y1, int x2, int y2,
+                     char *color_stroke, char *color_fill) {
+  shape_t *shape = create_base_shape(scene, LINE, color_stroke, color_fill);
+  if (shape == NULL)
+    return NULL;
+
+  shape->data.line.p1.x = x1;
+  shape->data.line.p1.y = y1;
+  shape->data.line.p2.x = x2;
+  shape->data.line.p2.y = y2;
+
+  return shape;
+}
+
+shape_t *create_circle(scene_t *scene, int cx, int cy, int r,
+                       char *color_stroke, char *color_fill) {
+  shape_t *shape = create_base_shape(scene, CIRCLE, color_stroke, color_fill);
+  if (shape == NULL)
+    return NULL;
+
+  shape->data.circle.cx = cx;
+  shape->data.circle.cy = cy;
+  shape->data.circle.r = r;
+
+  return shape;
+}
+
 shape_t *create_group(scene_t *scene) {
   // Un groupe n'a par défaut pas de couleur propre
   shape_t *shape = create_base_shape(scene, GROUP, NULL, NULL);
@@ -215,4 +242,42 @@ shape_t *find_shape_by_id(shape_t *current, int target_id) {
 
   // Sinon, on passe au frère suivant dans la liste
   return find_shape_by_id(current->next, target_id);
+}
+
+void delete_shape(scene_t *scene, int target_id) {
+  // 1. Trouver la forme (récursif grâce à ta fonction existante)
+  shape_t *to_delete = find_shape_by_id(scene->head, target_id);
+  if (to_delete == NULL) {
+    printf("> ID %d introuvable.\n", target_id);
+    return;
+  }
+
+  // 2. Déconnexion du maillon précédent
+  if (to_delete->prev != NULL) {
+    to_delete->prev->next = to_delete->next;
+  } else {
+    // C'était une tête de liste (soit de la scène, soit d'un groupe)
+    if (to_delete->parent != NULL) {
+      to_delete->parent->data.group.head = to_delete->next;
+    } else {
+      scene->head = to_delete->next;
+    }
+  }
+
+  // 3. Déconnexion du maillon suivant
+  if (to_delete->next != NULL) {
+    to_delete->next->prev = to_delete->prev;
+  } else {
+    // C'était une queue de liste
+    if (to_delete->parent != NULL) {
+      to_delete->parent->data.group.tail = to_delete->prev;
+    } else {
+      scene->tail = to_delete->prev;
+    }
+  }
+
+  // 4. Libération de la mémoire (free_shape gère aussi les enfants si c'est un
+  // groupe)
+  free_shape(to_delete);
+  printf("> Forme %d supprimee avec succes.\n", target_id);
 }

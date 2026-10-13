@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Déclarations externes (à terme, il faudra créer un shape.h pour éviter ça)
+// Déclarations externes
 extern scene_t *create_scene(int width, int height);
 extern void free_scene(scene_t *scene);
 extern shape_t *create_rectangle(scene_t *scene, int x, int y, int width,
@@ -15,6 +15,11 @@ extern void export_to_svg(scene_t *scene, const char *filename);
 extern void save_project(scene_t *scene, const char *filename);
 extern scene_t *load_project(const char *filename);
 extern shape_t *find_shape_by_id(shape_t *current, int target_id);
+extern void delete_shape(scene_t *scene, int target_id);
+extern shape_t *create_circle(scene_t *scene, int cx, int cy, int r,
+                              char *color_stroke, char *color_fill);
+extern shape_t *create_line(scene_t *scene, int x1, int y1, int x2, int y2,
+                            char *color_stroke, char *color_fill);
 
 void print_scene(scene_t *scene) {
   printf("--- ETAT DE LA SCENE ---\n");
@@ -29,6 +34,16 @@ void print_scene(scene_t *scene) {
              curr->id, curr->data.rect.x, curr->data.rect.y,
              curr->data.rect.width, curr->data.rect.height,
              curr->style.color_stroke, curr->style.color_fill);
+    } else if (curr->type == CIRCLE) {
+      printf("[ID: %d] CIRCLE - Center(%d,%d) Radius:%d Stroke:%s Fill:%s\n",
+             curr->id, curr->data.circle.cx, curr->data.circle.cy,
+             curr->data.circle.r, curr->style.color_stroke,
+             curr->style.color_fill);
+    } else if (curr->type == LINE) {
+      printf("[ID: %d] LINE - P1(%d,%d) P2(%d,%d) Stroke:%s Fill:%s\n",
+             curr->id, curr->data.line.p1.x, curr->data.line.p1.y,
+             curr->data.line.p2.x, curr->data.line.p2.y,
+             curr->style.color_stroke, curr->style.color_fill);
     }
     curr = curr->next;
   }
@@ -37,30 +52,30 @@ void print_scene(scene_t *scene) {
 
 int main(void) {
   char input[256];
-
-  // 1. Initialisation de la scène au lancement
   scene_t *scene = create_scene(800, 800);
   if (scene == NULL) {
     printf("Erreur critique: impossible d'initialiser la scene.\n");
     return 1;
   }
-
   printf("=== EDITEUR SVG (Vertical Slice) ===\n");
 
   while (true) {
     printf("svg> ");
     if (fgets(input, sizeof(input), stdin) == NULL)
       break;
-
-    input[strcspn(input, "\n")] = '\0'; // Retire le saut de ligne
+    input[strcspn(input, "\n")] = '\0';
 
     if (strcmp(input, "quit") == 0) {
       break;
     } else if (strcmp(input, "help") == 0) {
       printf("Commandes disponibles :\n");
+      printf("  viewport W H\n");
       printf("  create rect X Y W H STROKE FILL\n");
+      printf("  delete ID\n");
       printf("  move ID DX DY\n");
       printf("  rotate ID ANGLE\n");
+      printf("  flipx ID\n");
+      printf("  flipy ID\n");
       printf("  color ID STROKE FILL\n");
       printf("  list\n");
       printf("  display\n");
@@ -80,12 +95,24 @@ int main(void) {
         scene = loaded;
         printf("> Scene chargee avec succes.\n");
       }
+    } else if (strncmp(input, "create line", 11) == 0) {
+      int x1, y1, x2, y2;
+      char stroke[10], fill[10];
+      if (sscanf(input, "create line %d %d %d %d %9s %9s", &x1, &y1, &x2, &y2,
+                 stroke, fill) == 6) {
+        shape_t *line = create_line(scene, x1, y1, x2, y2, stroke, fill);
+        if (line != NULL) {
+          add_shape_to_scene(scene, line);
+          printf("> Ligne creee avec l'ID %d.\n", line->id);
+        }
+      } else {
+        printf(
+            "> Erreur syntaxe. Usage: create line x1 y1 x2 y2 stroke fill\n");
+      }
     } else if (strncmp(input, "create rect", 11) == 0) {
       int x, y, w, h;
-      // Buffer augmenté à 16 pour être sûr (compatible avec #RRGGBB)
-      char stroke[16], fill[16];
-
-      if (sscanf(input, "create rect %d %d %d %d %15s %15s", &x, &y, &w, &h,
+      char stroke[10], fill[10];
+      if (sscanf(input, "create rect %d %d %d %d %9s %9s", &x, &y, &w, &h,
                  stroke, fill) == 6) {
         shape_t *rect = create_rectangle(scene, x, y, w, h, stroke, fill);
         if (rect != NULL) {
@@ -95,13 +122,26 @@ int main(void) {
       } else {
         printf("> Erreur syntaxe. Usage: create rect x y w h stroke fill\n");
       }
+    } else if (strncmp(input, "create circle", 13) == 0) {
+      int cx, cy, r;
+      char stroke[10], fill[10];
+      if (sscanf(input, "create circle %d %d %d %9s %9s", &cx, &cy, &r, stroke,
+                 fill) == 5) {
+        shape_t *circ = create_circle(scene, cx, cy, r, stroke, fill);
+        if (circ != NULL) {
+          add_shape_to_scene(scene, circ);
+          printf("> Cercle cree avec l'ID %d.\n", circ->id);
+        }
+      } else {
+        printf("> Erreur syntaxe. Usage: create circle cx cy r stroke fill\n");
+      }
     } else if (strncmp(input, "move", 4) == 0) {
       int id, dx, dy;
       if (sscanf(input, "move %d %d %d", &id, &dx, &dy) == 3) {
         shape_t *s = find_shape_by_id(scene->head, id);
         if (s) {
           s->transform.move_x += dx;
-          s->transform.move_y += dy; // Ajouté pour que le Y bouge aussi !
+          s->transform.move_y += dy;
           printf("> Forme %d deplacee (Total move: %d, %d)\n", id,
                  s->transform.move_x, s->transform.move_y);
         } else {
@@ -124,17 +164,44 @@ int main(void) {
       } else {
         printf("> Erreur syntaxe rotate.\n");
       }
-    } else if (strncmp(input, "color", 5) == 0) {
+    } else if (strncmp(input, "flipx", 5) == 0) {
       int id;
-      char stroke[16], fill[16];
-      if (sscanf(input, "color %d %15s %15s", &id, stroke, fill) == 3) {
+      if (sscanf(input, "flipx %d", &id) == 1) {
         shape_t *s = find_shape_by_id(scene->head, id);
         if (s) {
-          // Copie sécurisée (on laisse 1 octet pour le \0)
-          strncpy(s->style.color_stroke, stroke, 15);
-          s->style.color_stroke[15] = '\0';
-          strncpy(s->style.color_fill, fill, 15);
-          s->style.color_fill[15] = '\0';
+          s->transform.invert_x = !s->transform.invert_x;
+          printf("> Forme %d inversee sur l'axe X (etat: %s)\n", id,
+                 s->transform.invert_x ? "OUI" : "NON");
+        } else {
+          printf("> ID %d introuvable.\n", id);
+        }
+      } else {
+        printf("> Erreur syntaxe flipx.\n");
+      }
+    } else if (strncmp(input, "flipy", 5) == 0) {
+      int id;
+      if (sscanf(input, "flipy %d", &id) == 1) {
+        shape_t *s = find_shape_by_id(scene->head, id);
+        if (s) {
+          s->transform.invert_y = !s->transform.invert_y;
+          printf("> Forme %d inversee sur l'axe Y (etat: %s)\n", id,
+                 s->transform.invert_y ? "OUI" : "NON");
+        } else {
+          printf("> ID %d introuvable.\n", id);
+        }
+      } else {
+        printf("> Erreur syntaxe flipy.\n");
+      }
+    } else if (strncmp(input, "color", 5) == 0) {
+      int id;
+      char stroke[10], fill[10];
+      if (sscanf(input, "color %d %9s %9s", &id, stroke, fill) == 3) {
+        shape_t *s = find_shape_by_id(scene->head, id);
+        if (s) {
+          strncpy(s->style.color_stroke, stroke, 9);
+          s->style.color_stroke[9] = '\0';
+          strncpy(s->style.color_fill, fill, 9);
+          s->style.color_fill[9] = '\0';
           printf("> Couleurs de la forme %d mises a jour.\n", id);
         } else {
           printf("> ID %d introuvable.\n", id);
@@ -142,14 +209,29 @@ int main(void) {
       } else {
         printf("> Erreur syntaxe color.\n");
       }
+    } else if (strncmp(input, "delete", 6) == 0) {
+      int id;
+      if (sscanf(input, "delete %d", &id) == 1) {
+        delete_shape(scene, id);
+      } else {
+        printf("> Erreur syntaxe. Usage: delete <id>\n");
+      }
+    } else if (strncmp(input, "viewport", 8) == 0) {
+      int w, h;
+      if (sscanf(input, "viewport %d %d", &w, &h) == 2) {
+        scene->view_width = w;
+        scene->view_height = h;
+        printf("> Viewport redimensionne en %dx%d.\n", w, h);
+      } else {
+        printf("> Erreur syntaxe. Usage: viewport <largeur> <hauteur>\n");
+      }
     } else if (strcmp(input, "") == 0) {
-      // On ne fait rien si l'utilisateur appuie juste sur Entrée
+      // Entrée vide, on ne fait rien
     } else {
       printf("Commande inconnue. Tapez 'help'.\n");
     }
   }
 
-  // 4. Nettoyage absolu avant la fermeture
   free_scene(scene);
   printf("Fermeture propre de l'editeur.\n");
   return 0;
