@@ -12,15 +12,16 @@ extern shape_t *create_rectangle(scene_t *scene, int x, int y, int width,
                                  char *color_fill);
 extern void add_shape_to_scene(scene_t *scene, shape_t *shape);
 extern void export_to_svg(scene_t *scene, const char *filename);
+extern void save_project(scene_t *scene, const char *filename);
+extern scene_t *load_project(const char *filename);
+extern shape_t *find_shape_by_id(shape_t *current, int target_id);
 
-// Fonction utilitaire temporaire pour debugger la liste chaînée
 void print_scene(scene_t *scene) {
   printf("--- ETAT DE LA SCENE ---\n");
   if (scene->head == NULL) {
     printf("La scene est vide.\n");
     return;
   }
-
   shape_t *curr = scene->head;
   while (curr != NULL) {
     if (curr->type == RECTANGLE) {
@@ -50,26 +51,41 @@ int main(void) {
     printf("svg> ");
     if (fgets(input, sizeof(input), stdin) == NULL)
       break;
-    input[strcspn(input, "\n")] = '\0'; // Retire le saut de ligne[cite: 5]
 
-    if (strcmp(input, "quit") == 0) { //[cite: 5]
+    input[strcspn(input, "\n")] = '\0'; // Retire le saut de ligne
+
+    if (strcmp(input, "quit") == 0) {
       break;
-    } else if (strcmp(input, "help") == 0) { //[cite: 5]
+    } else if (strcmp(input, "help") == 0) {
       printf("Commandes disponibles :\n");
       printf("  create rect X Y W H STROKE FILL\n");
+      printf("  move ID DX DY\n");
+      printf("  rotate ID ANGLE\n");
+      printf("  color ID STROKE FILL\n");
       printf("  list\n");
+      printf("  display\n");
+      printf("  save\n");
+      printf("  load\n");
       printf("  quit\n");
     } else if (strcmp(input, "list") == 0) {
-      // 2. Affichage du contenu de la mémoire
       print_scene(scene);
     } else if (strcmp(input, "display") == 0) {
       export_to_svg(scene, "temp_render.svg");
+    } else if (strcmp(input, "save") == 0) {
+      save_project(scene, "save.mysvg");
+    } else if (strcmp(input, "load") == 0) {
+      scene_t *loaded = load_project("save.mysvg");
+      if (loaded != NULL) {
+        free_scene(scene);
+        scene = loaded;
+        printf("> Scene chargee avec succes.\n");
+      }
     } else if (strncmp(input, "create rect", 11) == 0) {
       int x, y, w, h;
-      char stroke[10], fill[10];
+      // Buffer augmenté à 16 pour être sûr (compatible avec #RRGGBB)
+      char stroke[16], fill[16];
 
-      // 3. Parsing des arguments tapés par l'utilisateur
-      if (sscanf(input, "create rect %d %d %d %d %9s %9s", &x, &y, &w, &h,
+      if (sscanf(input, "create rect %d %d %d %d %15s %15s", &x, &y, &w, &h,
                  stroke, fill) == 6) {
         shape_t *rect = create_rectangle(scene, x, y, w, h, stroke, fill);
         if (rect != NULL) {
@@ -79,10 +95,57 @@ int main(void) {
       } else {
         printf("> Erreur syntaxe. Usage: create rect x y w h stroke fill\n");
       }
-    } else if (strcmp(input, "") == 0) { //[cite: 5]
+    } else if (strncmp(input, "move", 4) == 0) {
+      int id, dx, dy;
+      if (sscanf(input, "move %d %d %d", &id, &dx, &dy) == 3) {
+        shape_t *s = find_shape_by_id(scene->head, id);
+        if (s) {
+          s->transform.move_x += dx;
+          s->transform.move_y += dy; // Ajouté pour que le Y bouge aussi !
+          printf("> Forme %d deplacee (Total move: %d, %d)\n", id,
+                 s->transform.move_x, s->transform.move_y);
+        } else {
+          printf("> ID %d introuvable.\n", id);
+        }
+      } else {
+        printf("> Erreur syntaxe move.\n");
+      }
+    } else if (strncmp(input, "rotate", 6) == 0) {
+      int id, angle;
+      if (sscanf(input, "rotate %d %d", &id, &angle) == 2) {
+        shape_t *s = find_shape_by_id(scene->head, id);
+        if (s) {
+          s->transform.angle = (s->transform.angle + angle) % 360;
+          printf("> Forme %d pivotee (Angle total: %d)\n", id,
+                 s->transform.angle);
+        } else {
+          printf("> ID %d introuvable.\n", id);
+        }
+      } else {
+        printf("> Erreur syntaxe rotate.\n");
+      }
+    } else if (strncmp(input, "color", 5) == 0) {
+      int id;
+      char stroke[16], fill[16];
+      if (sscanf(input, "color %d %15s %15s", &id, stroke, fill) == 3) {
+        shape_t *s = find_shape_by_id(scene->head, id);
+        if (s) {
+          // Copie sécurisée (on laisse 1 octet pour le \0)
+          strncpy(s->style.color_stroke, stroke, 15);
+          s->style.color_stroke[15] = '\0';
+          strncpy(s->style.color_fill, fill, 15);
+          s->style.color_fill[15] = '\0';
+          printf("> Couleurs de la forme %d mises a jour.\n", id);
+        } else {
+          printf("> ID %d introuvable.\n", id);
+        }
+      } else {
+        printf("> Erreur syntaxe color.\n");
+      }
+    } else if (strcmp(input, "") == 0) {
       // On ne fait rien si l'utilisateur appuie juste sur Entrée
     } else {
-      printf("unknown command\n"); //[cite: 5]
+      printf("Commande inconnue. Tapez 'help'.\n");
     }
   }
 

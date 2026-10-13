@@ -29,12 +29,29 @@ void export_to_svg(scene_t *scene, const char *filename) {
   shape_t *curr = scene->head;
   while (curr != NULL) {
     if (curr->type == RECTANGLE) {
+      int scale_x = curr->transform.invert_x ? -1 : 1;
+      int scale_y = curr->transform.invert_y ? -1 : 1;
+
+      // Centre de la forme AVANT translation
+      int center_x = curr->data.rect.x + (curr->data.rect.width / 2);
+      int center_y = curr->data.rect.y + (curr->data.rect.height / 2);
+
+      // Centre de la forme APRÈS translation
+      int center_x_final = center_x + curr->transform.move_x;
+      int center_y_final = center_y + curr->transform.move_y;
+
       fprintf(f,
               "  <rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" "
-              "fill=\"%s\" stroke=\"%s\" />\n",
+              "fill=\"%s\" stroke=\"%s\" stroke-width=\"5\" "
+              "transform=\"translate(%d %d) rotate(%d) translate(%d %d) "
+              "scale(%d %d)\" />\n",
               curr->data.rect.x, curr->data.rect.y, curr->data.rect.width,
               curr->data.rect.height, curr->style.color_fill,
-              curr->style.color_stroke);
+              curr->style.color_stroke, center_x_final,
+              center_y_final,        // 1. Amener le centre à sa position finale
+              curr->transform.angle, // 2. Tourner
+              -center_x, -center_y,  // 3. Revenir à l'origine relative
+              scale_x, scale_y);
     }
     // Les autres if (curr->type == CIRCLE) viendront ici plus tard !
 
@@ -46,6 +63,7 @@ void export_to_svg(scene_t *scene, const char *filename) {
 
   printf("> Rendu SVG genere dans %s.\n", filename);
 
-  // Ouverture automatique sous Linux
-  system("xdg-open temp_render.svg &");
+  char cmd[100];
+  sprintf(cmd, "xdg-open %s &", filename);
+  system(cmd);
 }

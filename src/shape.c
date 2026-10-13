@@ -158,15 +158,15 @@ static shape_t *create_base_shape(scene_t *scene, shape_type_t type,
 
   // Copie sécurisée des couleurs (prévention du Segfault si NULL)
   if (color_fill != NULL) {
-    strncpy(shape->style.color_fill, color_fill, 9);
-    shape->style.color_fill[9] = '\0';
+    strncpy(shape->style.color_fill, color_fill, 31);
+    shape->style.color_fill[31] = '\0';
   } else {
     shape->style.color_fill[0] = '\0';
   }
 
   if (color_stroke != NULL) {
-    strncpy(shape->style.color_stroke, color_stroke, 9);
-    shape->style.color_stroke[9] = '\0';
+    strncpy(shape->style.color_stroke, color_stroke, 31);
+    shape->style.color_stroke[31] = '\0';
   } else {
     shape->style.color_stroke[0] = '\0';
   }
@@ -195,4 +195,24 @@ shape_t *create_group(scene_t *scene) {
   // Pas d'allocation mémoire supplémentaire ici : c'est l'avantage de la liste
   // chaînée !
   return shape;
+}
+
+shape_t *find_shape_by_id(shape_t *current, int target_id) {
+  if (current == NULL)
+    return NULL;
+
+  // On cherche d'abord dans le nœud courant
+  if (current->id == target_id)
+    return current;
+
+  // Si c'est un groupe, on cherche récursivement dans ses enfants
+  if (current->type == GROUP && current->data.group.head != NULL) {
+    shape_t *found_in_child =
+        find_shape_by_id(current->data.group.head, target_id);
+    if (found_in_child != NULL)
+      return found_in_child;
+  }
+
+  // Sinon, on passe au frère suivant dans la liste
+  return find_shape_by_id(current->next, target_id);
 }

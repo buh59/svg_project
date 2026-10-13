@@ -30,8 +30,8 @@ typedef struct transformation_s {
 } transformation_t;
 
 typedef struct colors_s {
-  char color_stroke[10];
-  char color_fill[10];
+  char color_stroke[32];
+  char color_fill[32];
 } colors_t;
 
 typedef struct shape_s {
