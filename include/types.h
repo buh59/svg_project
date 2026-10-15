@@ -8,7 +8,6 @@ typedef enum {
   CIRCLE,
   ELLIPSE,
   RECTANGLE,
-  SQUARE,
   LINE,
   POLYLINE,
   POLYGON,
@@ -43,10 +42,9 @@ typedef struct shape_s {
   int id;
   shape_type_t type;
 
-  // Pointeurs de Liste Doublement Chaînée
-  struct shape_s *prev;   // Frère précédent (même niveau)
-  struct shape_s *next;   // Frère suivant (même niveau)
-  struct shape_s *parent; // Parent (groupe)
+  struct shape_s *prev;
+  struct shape_s *next;
+  struct shape_s *parent;
 
   union {
     struct {
@@ -76,8 +74,8 @@ typedef struct shape_s {
       size_t count;
     } path;
     struct {
-      struct shape_s *head; // Premier enfant
-      struct shape_s *tail; // Dernier enfant
+      struct shape_s *head;
+      struct shape_s *tail;
     } group;
   } data;
 
@@ -88,9 +86,9 @@ typedef struct shape_s {
 typedef struct scene_s {
   int view_width;
   int view_height;
-  shape_t *head;        // Première forme dans la scène
-  shape_t *tail;        // Dernière forme dans la scène
-  size_t element_count; // Maintenu pour l'attribution des ID
+  shape_t *head;
+  shape_t *tail;
+  size_t element_count;
   int next_id;
 } scene_t;
 

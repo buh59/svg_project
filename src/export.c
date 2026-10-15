@@ -1,270 +1,199 @@
 #include "../include/types.h"
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+static void get_local_center(shape_t *shape, int *cx, int *cy) {
+  switch (shape->type) {
+  case RECTANGLE:
+    *cx = shape->data.rect.x + shape->data.rect.width / 2;
+    *cy = shape->data.rect.y + shape->data.rect.height / 2;
+    break;
+  case CIRCLE:
+    *cx = shape->data.circle.cx;
+    *cy = shape->data.circle.cy;
+    break;
+  case ELLIPSE:
+    *cx = shape->data.ellipse.cx;
+    *cy = shape->data.ellipse.cy;
+    break;
+  case LINE:
+    *cx = (shape->data.line.p1.x + shape->data.line.p2.x) / 2;
+    *cy = (shape->data.line.p1.y + shape->data.line.p2.y) / 2;
+    break;
+  case POLYLINE: {
+    point_node_t *pt = shape->data.polyline.head;
+    int sum_x = 0, sum_y = 0;
+    size_t count = 0;
+    while (pt) {
+      sum_x += pt->p.x;
+      sum_y += pt->p.y;
+      count++;
+      pt = pt->next;
+    }
+    *cx = (count > 0) ? sum_x / count : 0;
+    *cy = (count > 0) ? sum_y / count : 0;
+    break;
+  }
+  case POLYGON: {
+    point_node_t *pt = shape->data.polygon.head;
+    int sum_x = 0, sum_y = 0;
+    size_t count = 0;
+    while (pt) {
+      sum_x += pt->p.x;
+      sum_y += pt->p.y;
+      count++;
+      pt = pt->next;
+    }
+    *cx = (count > 0) ? sum_x / count : 0;
+    *cy = (count > 0) ? sum_y / count : 0;
+    break;
+  }
+  default:
+    *cx = 0;
+    *cy = 0;
+  }
+}
+
+static void write_transform(FILE *f, shape_t *shape) {
+  int sx = shape->transform.invert_x ? -1 : 1;
+  int sy = shape->transform.invert_y ? -1 : 1;
+  int cx, cy;
+  get_local_center(shape, &cx, &cy);
+  int cx_final = cx + shape->transform.move_x;
+  int cy_final = cy + shape->transform.move_y;
+
+  fprintf(
+      f,
+      "transform=\"translate(%d %d) rotate(%d) scale(%d %d) translate(%d %d)\"",
+      cx_final, cy_final, shape->transform.angle, sx, sy, -cx, -cy);
+}
+
+static void export_shape_recursive(shape_t *shape, FILE *f, int depth) {
+  if (shape == NULL)
+    return;
+
+  for (int i = 0; i < depth; i++)
+    fprintf(f, "  ");
+
+  if (shape->type == GROUP) {
+    int sx = shape->transform.invert_x ? -1 : 1;
+    int sy = shape->transform.invert_y ? -1 : 1;
+    fprintf(f,
+            "<g id=\"group_%d\" transform=\"translate(%d %d) rotate(%d) "
+            "scale(%d %d)\">\n",
+            shape->id, shape->transform.move_x, shape->transform.move_y,
+            shape->transform.angle, sx, sy);
+
+    shape_t *child = shape->data.group.head;
+    while (child != NULL) {
+      export_shape_recursive(child, f, depth + 1);
+      child = child->next;
+    }
+    for (int i = 0; i < depth; i++)
+      fprintf(f, "  ");
+    fprintf(f, "</g>\n");
+  } else {
+    switch (shape->type) {
+    case RECTANGLE:
+      fprintf(f,
+              "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" "
+              "fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
+              shape->data.rect.x, shape->data.rect.y, shape->data.rect.width,
+              shape->data.rect.height, shape->style.color_fill,
+              shape->style.color_stroke);
+      write_transform(f, shape);
+      fprintf(f, " />\n");
+      break;
+    case CIRCLE:
+      fprintf(f,
+              "<circle cx=\"%d\" cy=\"%d\" r=\"%d\" "
+              "fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
+              shape->data.circle.cx, shape->data.circle.cy,
+              shape->data.circle.r, shape->style.color_fill,
+              shape->style.color_stroke);
+      write_transform(f, shape);
+      fprintf(f, " />\n");
+      break;
+    case ELLIPSE:
+      fprintf(f,
+              "<ellipse cx=\"%d\" cy=\"%d\" rx=\"%d\" ry=\"%d\" "
+              "fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
+              shape->data.ellipse.cx, shape->data.ellipse.cy,
+              shape->data.ellipse.rx, shape->data.ellipse.ry,
+              shape->style.color_fill, shape->style.color_stroke);
+      write_transform(f, shape);
+      fprintf(f, " />\n");
+      break;
+    case LINE:
+      fprintf(f,
+              "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" "
+              "stroke=\"%s\" stroke-width=\"3\" ",
+              shape->data.line.p1.x, shape->data.line.p1.y,
+              shape->data.line.p2.x, shape->data.line.p2.y,
+              shape->style.color_stroke);
+      write_transform(f, shape);
+      fprintf(f, " />\n");
+      break;
+    case POLYLINE: {
+      fprintf(f, "<polyline points=\"");
+      point_node_t *pt = shape->data.polyline.head;
+      while (pt) {
+        fprintf(f, "%d,%d ", pt->p.x, pt->p.y);
+        pt = pt->next;
+      }
+      fprintf(f, "\" fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
+              shape->style.color_fill, shape->style.color_stroke);
+      write_transform(f, shape);
+      fprintf(f, " />\n");
+      break;
+    }
+    case POLYGON: {
+      fprintf(f, "<polygon points=\"");
+      point_node_t *pt = shape->data.polygon.head;
+      while (pt) {
+        fprintf(f, "%d,%d ", pt->p.x, pt->p.y);
+        pt = pt->next;
+      }
+      fprintf(f, "\" fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
+              shape->style.color_fill, shape->style.color_stroke);
+      write_transform(f, shape);
+      fprintf(f, " />\n");
+      break;
+    }
+    default:
+      break;
+    }
+  }
+
+  export_shape_recursive(shape->next, f, depth);
+}
 
 void export_to_svg(scene_t *scene, const char *filename) {
   if (scene == NULL)
     return;
-
   FILE *f = fopen(filename, "w");
   if (f == NULL) {
     printf("Erreur : impossible de creer le fichier %s\n", filename);
     return;
   }
 
-  // En-tête standard SVG
   fprintf(f,
           "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%d\" "
           "height=\"%d\" viewBox=\"0 0 %d %d\">\n",
           scene->view_width, scene->view_height, scene->view_width,
           scene->view_height);
-
-  // Dessine un fond blanc de la taille exacte de la scène pour mieux voir les
-  // limites
   fprintf(
       f,
       "  <rect x=\"0\" y=\"0\" width=\"%d\" height=\"%d\" fill=\"white\" />\n",
       scene->view_width, scene->view_height);
-  // Parcours de ta liste chaînée
-  shape_t *curr = scene->head;
-  while (curr != NULL) {
-    int min_x = 0, max_x = 0, min_y = 0, max_y = 0;
-    bool visible = false;
 
-    if (curr->type == RECTANGLE) {
-      min_x = curr->data.rect.x + curr->transform.move_x;
-      max_x = min_x + curr->data.rect.width;
-      min_y = curr->data.rect.y + curr->transform.move_y;
-      max_y = min_y + curr->data.rect.height;
-      visible = true;
-    } else if (curr->type == CIRCLE) {
-      min_x =
-          curr->data.circle.cx + curr->transform.move_x - curr->data.circle.r;
-      max_x = min_x + (curr->data.circle.r * 2);
-      min_y =
-          curr->data.circle.cy + curr->transform.move_y - curr->data.circle.r;
-      max_y = min_y + (curr->data.circle.r * 2);
-      visible = true;
-    } else if (curr->type == POLYLINE) {
-      if (curr->data.polyline.head != NULL) {
-        point_node_t *pt = curr->data.polyline.head;
-        // Initialiser avec le premier point
-        min_x = pt->p.x + curr->transform.move_x;
-        max_x = min_x;
-        min_y = pt->p.y + curr->transform.move_y;
-        max_y = min_y;
-
-        // Parcourir tous les points pour trouver les min/max
-        while (pt != NULL) {
-          int px = pt->p.x + curr->transform.move_x;
-          int py = pt->p.y + curr->transform.move_y;
-          if (px < min_x)
-            min_x = px;
-          if (px > max_x)
-            max_x = px;
-          if (py < min_y)
-            min_y = py;
-          if (py > max_y)
-            max_y = py;
-          pt = pt->next;
-        }
-        visible = true;
-      }
-    } else if (curr->type == POLYGON && curr->data.polygon.head != NULL) {
-      point_node_t *pt = curr->data.polygon.head;
-      min_x = pt->p.x + curr->transform.move_x;
-      max_x = min_x;
-      min_y = pt->p.y + curr->transform.move_y;
-      max_y = min_y;
-
-      while (pt != NULL) {
-        int px = pt->p.x + curr->transform.move_x;
-        int py = pt->p.y + curr->transform.move_y;
-        if (px < min_x)
-          min_x = px;
-        if (px > max_x)
-          max_x = px;
-        if (py < min_y)
-          min_y = py;
-        if (py > max_y)
-          max_y = py;
-        pt = pt->next;
-      }
-      visible = true;
-    }
-    // Si la forme est totalement en dehors du viewport, on passe à la suivante
-    if (visible && (max_x < 0 || min_x > scene->view_width || max_y < 0 ||
-                    min_y > scene->view_height)) {
-      curr = curr->next;
-      continue; // On saute le dessin de cette forme
-    }
-    if (curr->type == RECTANGLE) {
-      int scale_x = curr->transform.invert_x ? -1 : 1;
-      int scale_y = curr->transform.invert_y ? -1 : 1;
-
-      // 1. Calcul du centre de la forme dans ses coordonnées locales (avant
-      // move)
-      int center_x_local = curr->data.rect.x + (curr->data.rect.width / 2);
-      int center_y_local = curr->data.rect.y + (curr->data.rect.height / 2);
-
-      // 2. Calcul du centre final (après le déplacement)
-      int center_x_final = center_x_local + curr->transform.move_x;
-      int center_y_final = center_y_local + curr->transform.move_y;
-
-      // En SVG, les transformations s'appliquent de la DROITE vers la GAUCHE.
-      // L'ordre est donc : translate(local) -> scale -> rotate ->
-      // translate(final)
-      fprintf(f,
-              "  <rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" "
-              "fill=\"%s\" stroke=\"%s\" stroke-width=\"5\" "
-              "transform=\"translate(%d %d) rotate(%d) scale(%d %d) "
-              "translate(%d %d)\" />\n",
-              curr->data.rect.x, curr->data.rect.y, curr->data.rect.width,
-              curr->data.rect.height, curr->style.color_fill,
-              curr->style.color_stroke, center_x_final,
-              center_y_final,                  // 4. On replace au centre final
-              curr->transform.angle,           // 3. On tourne
-              scale_x, scale_y,                // 2. On flip (autour de 0,0)
-              -center_x_local, -center_y_local // 1. On amène le centre à 0,0
-      );
-    } else if (curr->type == POLYGON && curr->data.polygon.head != NULL) {
-      int scale_x = curr->transform.invert_x ? -1 : 1;
-      int scale_y = curr->transform.invert_y ? -1 : 1;
-
-      // Calculer le centroïde pour la rotation
-      int sum_x = 0, sum_y = 0;
-      size_t count = curr->data.polygon.count;
-      point_node_t *pt = curr->data.polygon.head;
-      while (pt != NULL) {
-        sum_x += pt->p.x;
-        sum_y += pt->p.y;
-        pt = pt->next;
-      }
-      int center_x = sum_x / count;
-      int center_y = sum_y / count;
-
-      int center_x_final = center_x + curr->transform.move_x;
-      int center_y_final = center_y + curr->transform.move_y;
-
-      fprintf(f, "  <polygon points=\"");
-      pt = curr->data.polygon.head;
-      while (pt != NULL) {
-        fprintf(f, "%d,%d ", pt->p.x, pt->p.y);
-        pt = pt->next;
-      }
-      fprintf(f,
-              "\" fill=\"%s\" stroke=\"%s\" stroke-width=\"5\" "
-              "transform=\"translate(%d %d) rotate(%d) scale(%d %d) "
-              "translate(%d %d)\" />\n",
-              curr->style.color_fill, curr->style.color_stroke, center_x_final,
-              center_y_final, curr->transform.angle, scale_x, scale_y,
-              -center_x, -center_y);
-    }
-    // Les autres if (curr->type == CIRCLE) viendront ici plus tard !
-    else if (curr->type == ELLIPSE) {
-      int scale_x = curr->transform.invert_x ? -1 : 1;
-      int scale_y = curr->transform.invert_y ? -1 : 1;
-
-      // Centre de l'ellipse dans ses coordonnées locales
-      int center_x = curr->data.ellipse.cx;
-      int center_y = curr->data.ellipse.cy;
-
-      // Centre final après translation
-      int center_x_final = center_x + curr->transform.move_x;
-      int center_y_final = center_y + curr->transform.move_y;
-
-      fprintf(f,
-              "  <ellipse cx=\"%d\" cy=\"%d\" rx=\"%d\" ry=\"%d\" "
-              "fill=\"%s\" stroke=\"%s\" stroke-width=\"5\" "
-              "transform=\"translate(%d %d) rotate(%d) scale(%d %d) "
-              "translate(%d %d)\" />\n",
-              curr->data.ellipse.cx, curr->data.ellipse.cy,
-              curr->data.ellipse.rx, curr->data.ellipse.ry,
-              curr->style.color_fill, curr->style.color_stroke, center_x_final,
-              center_y_final,        // 4. Replace au centre final
-              curr->transform.angle, // 3. Tourne
-              scale_x, scale_y,      // 2. Flip
-              -center_x, -center_y   // 1. Amène le centre à 0,0
-      );
-
-    } else if (curr->type == LINE) {
-      int scale_x = curr->transform.invert_x ? -1 : 1;
-      int scale_y = curr->transform.invert_y ? -1 : 1;
-
-      // Calcul du point médian (centre de la ligne)
-      int mid_x = (curr->data.line.p1.x + curr->data.line.p2.x) / 2;
-      int mid_y = (curr->data.line.p1.y + curr->data.line.p2.y) / 2;
-
-      int mid_x_final = mid_x + curr->transform.move_x;
-      int mid_y_final = mid_y + curr->transform.move_y;
-
-      fprintf(f,
-              "  <line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" "
-              "stroke=\"%s\" stroke-width=\"5\" "
-              "transform=\"translate(%d %d) rotate(%d) scale(%d %d) "
-              "translate(%d %d)\" />\n",
-              curr->data.line.p1.x, curr->data.line.p1.y, curr->data.line.p2.x,
-              curr->data.line.p2.y, curr->style.color_stroke, mid_x_final,
-              mid_y_final,           // 4. Replace au centre final
-              curr->transform.angle, // 3. Tourne
-              scale_x, scale_y,      // 2. Flip
-              -mid_x, -mid_y         // 1. Amène le centre à 0,0
-      );
-    } else if (curr->type == CIRCLE) {
-      int scale_x = curr->transform.invert_x ? -1 : 1;
-      int scale_y = curr->transform.invert_y ? -1 : 1;
-
-      fprintf(f,
-              "  <circle cx=\"%d\" cy=\"%d\" r=\"%d\" fill=\"%s\" "
-              "stroke=\"%s\" stroke-width=\"5\" transform=\"translate(%d %d) "
-              "rotate(%d) scale(%d %d)\" />\n",
-              curr->data.circle.cx, curr->data.circle.cy, curr->data.circle.r,
-              curr->style.color_fill, curr->style.color_stroke,
-              curr->transform.move_x, curr->transform.move_y,
-              curr->transform.angle, scale_x, scale_y);
-    } else if (curr->type == POLYLINE && curr->data.polyline.head != NULL) {
-      int scale_x = curr->transform.invert_x ? -1 : 1;
-      int scale_y = curr->transform.invert_y ? -1 : 1;
-
-      // Calculer le centroïde (centre de masse) pour la rotation
-      int sum_x = 0, sum_y = 0;
-      size_t count = curr->data.polyline.count;
-      point_node_t *pt = curr->data.polyline.head;
-      while (pt != NULL) {
-        sum_x += pt->p.x;
-        sum_y += pt->p.y;
-        pt = pt->next;
-      }
-      int center_x = sum_x / count;
-      int center_y = sum_y / count;
-
-      int center_x_final = center_x + curr->transform.move_x;
-      int center_y_final = center_y + curr->transform.move_y;
-
-      // Écrire les points
-      fprintf(f, "  <polyline points=\"");
-      pt = curr->data.polyline.head;
-      while (pt != NULL) {
-        fprintf(f, "%d,%d ", pt->p.x, pt->p.y);
-        pt = pt->next;
-      }
-
-      // Appliquer les transformations (comme pour le rectangle)
-      fprintf(f,
-              "\" fill=\"%s\" stroke=\"%s\" stroke-width=\"5\" "
-              "transform=\"translate(%d %d) rotate(%d) scale(%d %d) "
-              "translate(%d %d)\" />\n",
-              curr->style.color_fill, curr->style.color_stroke, center_x_final,
-              center_y_final, curr->transform.angle, scale_x, scale_y,
-              -center_x, -center_y);
-    }
-
-    curr = curr->next;
+  if (scene->head != NULL) {
+    export_shape_recursive(scene->head, f, 1);
   }
 
   fprintf(f, "</svg>\n");
   fclose(f);
-
   printf("> Rendu SVG genere dans %s.\n", filename);
 
   char cmd[100];
