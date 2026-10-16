@@ -21,22 +21,9 @@ static void get_local_center(shape_t *shape, int *cx, int *cy) {
     *cx = (shape->data.line.p1.x + shape->data.line.p2.x) / 2;
     *cy = (shape->data.line.p1.y + shape->data.line.p2.y) / 2;
     break;
-  case POLYLINE: {
-    point_node_t *pt = shape->data.polyline.head;
-    int sum_x = 0, sum_y = 0;
-    size_t count = 0;
-    while (pt) {
-      sum_x += pt->p.x;
-      sum_y += pt->p.y;
-      count++;
-      pt = pt->next;
-    }
-    *cx = (count > 0) ? sum_x / count : 0;
-    *cy = (count > 0) ? sum_y / count : 0;
-    break;
-  }
+  case POLYLINE:
   case POLYGON: {
-    point_node_t *pt = shape->data.polygon.head;
+    point_node_t *pt = shape->data.point_list.head;
     int sum_x = 0, sum_y = 0;
     size_t count = 0;
     while (pt) {
@@ -56,17 +43,21 @@ static void get_local_center(shape_t *shape, int *cx, int *cy) {
 }
 
 static void write_transform(FILE *f, shape_t *shape) {
-  int sx = shape->transform.invert_x ? -1 : 1;
-  int sy = shape->transform.invert_y ? -1 : 1;
+  float sx = (shape->transform.invert_x ? -1.0f : 1.0f) *
+             shape->transform.scale_factor;
+  float sy = (shape->transform.invert_y ? -1.0f : 1.0f) *
+             shape->transform.scale_factor;
+
   int cx, cy;
   get_local_center(shape, &cx, &cy);
   int cx_final = cx + shape->transform.move_x;
   int cy_final = cy + shape->transform.move_y;
 
-  fprintf(
-      f,
-      "transform=\"translate(%d %d) rotate(%d) scale(%d %d) translate(%d %d)\"",
-      cx_final, cy_final, shape->transform.angle, sx, sy, -cx, -cy);
+  // Utilisation de %.2f pour le SVG
+  fprintf(f,
+          "transform=\"translate(%d %d) rotate(%d) scale(%.2f %.2f) "
+          "translate(%d %d)\"",
+          cx_final, cy_final, shape->transform.angle, sx, sy, -cx, -cy);
 }
 
 static void export_shape_recursive(shape_t *shape, FILE *f, int depth) {
@@ -135,22 +126,11 @@ static void export_shape_recursive(shape_t *shape, FILE *f, int depth) {
       write_transform(f, shape);
       fprintf(f, " />\n");
       break;
-    case POLYLINE: {
-      fprintf(f, "<polyline points=\"");
-      point_node_t *pt = shape->data.polyline.head;
-      while (pt) {
-        fprintf(f, "%d,%d ", pt->p.x, pt->p.y);
-        pt = pt->next;
-      }
-      fprintf(f, "\" fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
-              shape->style.color_fill, shape->style.color_stroke);
-      write_transform(f, shape);
-      fprintf(f, " />\n");
-      break;
-    }
+    case POLYLINE:
     case POLYGON: {
-      fprintf(f, "<polygon points=\"");
-      point_node_t *pt = shape->data.polygon.head;
+      const char *tag = (shape->type == POLYLINE) ? "polyline" : "polygon";
+      fprintf(f, "<%s points=\"", tag);
+      point_node_t *pt = shape->data.point_list.head;
       while (pt) {
         fprintf(f, "%d,%d ", pt->p.x, pt->p.y);
         pt = pt->next;

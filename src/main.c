@@ -1,88 +1,59 @@
+#include "../include/export.h"
+#include "../include/geometry.h"
+#include "../include/group.h"
+#include "../include/scene.h"
+#include "../include/storage.h"
 #include "../include/types.h"
 #include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
-extern scene_t *create_scene(int width, int height);
-extern void free_scene(scene_t *scene);
-extern shape_t *create_rectangle(scene_t *scene, int x, int y, int width,
-                                 int height, char *color_stroke,
-                                 char *color_fill);
-extern void add_shape_to_scene(scene_t *scene, shape_t *shape);
-extern void export_to_svg(scene_t *scene, const char *filename);
-extern void save_project(scene_t *scene, const char *filename);
-extern scene_t *load_project(const char *filename);
-extern shape_t *find_shape_by_id(shape_t *current, int target_id);
-extern void delete_shape(scene_t *scene, int target_id);
-extern shape_t *create_circle(scene_t *scene, int cx, int cy, int r,
-                              char *color_stroke, char *color_fill);
-extern shape_t *create_line(scene_t *scene, int x1, int y1, int x2, int y2,
-                            char *color_stroke, char *color_fill);
-extern shape_t *create_ellipse(scene_t *scene, int cx, int cy, int rx, int ry,
-                               char *color_stroke, char *color_fill);
-extern shape_t *create_polyline(scene_t *scene, char *color_stroke,
-                                char *color_fill);
-extern bool add_point_to_polyline(shape_t *shape, int x, int y);
-extern shape_t *create_polygon(scene_t *scene, char *color_stroke,
-                               char *color_fill);
-extern bool add_point_to_polygon(shape_t *shape, int x, int y);
-extern shape_t *create_group(scene_t *scene);
-extern void add_shape_to_group(shape_t *group, shape_t *child);
-extern void detach_shape(shape_t *shape, scene_t *scene);
-extern shape_t *create_group_with(scene_t *scene, int *ids, int count);
-extern void remove_from_group(scene_t *scene, int target_id);
-
-bool is_ancestor(shape_t *potential_ancestor, shape_t *shape) {
-  shape_t *curr = shape->parent;
-  while (curr != NULL) {
-    if (curr == potential_ancestor)
-      return true;
-    curr = curr->parent;
-  }
-  return false;
-}
-
 void print_recursive(shape_t *node, int depth) {
-  if (node == NULL)
+  if (!node)
     return;
-
   for (int i = 0; i < depth; i++)
     printf("  ");
 
+  int mx = node->transform.move_x;
+  int my = node->transform.move_y;
+  float sc = node->transform.scale_factor;
+
   if (node->type == RECTANGLE) {
-    printf("[ID: %d] RECTANGLE - Pos(%d,%d) Dim(%dx%d) Stroke:%s Fill:%s\n",
-           node->id, node->data.rect.x, node->data.rect.y,
-           node->data.rect.width, node->data.rect.height,
+    printf("[ID: %d] RECTANGLE - Pos(%d,%d) Dim(%dx%d) Scale:x%.2f Stroke:%s "
+           "Fill:%s\n",
+           node->id, node->data.rect.x + mx, node->data.rect.y + my,
+           node->data.rect.width, node->data.rect.height, sc,
            node->style.color_stroke, node->style.color_fill);
   } else if (node->type == CIRCLE) {
-    printf("[ID: %d] CIRCLE - Center(%d,%d) Radius:%d Stroke:%s Fill:%s\n",
-           node->id, node->data.circle.cx, node->data.circle.cy,
-           node->data.circle.r, node->style.color_stroke,
+    printf("[ID: %d] CIRCLE - Center(%d,%d) Radius:%d Scale:x%.2f Stroke:%s "
+           "Fill:%s\n",
+           node->id, node->data.circle.cx + mx, node->data.circle.cy + my,
+           node->data.circle.r, sc, node->style.color_stroke,
            node->style.color_fill);
   } else if (node->type == ELLIPSE) {
-    printf("[ID: %d] ELLIPSE - Center(%d,%d) Radii(%d,%d) Stroke:%s Fill:%s\n",
-           node->id, node->data.ellipse.cx, node->data.ellipse.cy,
-           node->data.ellipse.rx, node->data.ellipse.ry,
+    printf("[ID: %d] ELLIPSE - Center(%d,%d) Radii(%d,%d) Scale:x%.2f "
+           "Stroke:%s Fill:%s\n",
+           node->id, node->data.ellipse.cx + mx, node->data.ellipse.cy + my,
+           node->data.ellipse.rx, node->data.ellipse.ry, sc,
            node->style.color_stroke, node->style.color_fill);
   } else if (node->type == LINE) {
-    printf("[ID: %d] LINE - P1(%d,%d) P2(%d,%d) Stroke:%s Fill:%s\n", node->id,
-           node->data.line.p1.x, node->data.line.p1.y, node->data.line.p2.x,
-           node->data.line.p2.y, node->style.color_stroke,
-           node->style.color_fill);
+    printf(
+        "[ID: %d] LINE - P1(%d,%d) P2(%d,%d) Scale:x%.2f Stroke:%s Fill:%s\n",
+        node->id, node->data.line.p1.x + mx, node->data.line.p1.y + my,
+        node->data.line.p2.x + mx, node->data.line.p2.y + my, sc,
+        node->style.color_stroke, node->style.color_fill);
   } else if (node->type == POLYLINE) {
-    printf("[ID: %d] POLYLINE - %zu points Stroke:%s Fill:%s\n", node->id,
-           node->data.polyline.count, node->style.color_stroke,
+    printf("[ID: %d] POLYLINE - %zu pts Scale:x%.2f Stroke:%s Fill:%s\n",
+           node->id, node->data.point_list.count, sc, node->style.color_stroke,
            node->style.color_fill);
   } else if (node->type == POLYGON) {
-    printf("[ID: %d] POLYGON - %zu points Stroke:%s Fill:%s\n", node->id,
-           node->data.polygon.count, node->style.color_stroke,
+    printf("[ID: %d] POLYGON - %zu pts Scale:x%.2f Stroke:%s Fill:%s\n",
+           node->id, node->data.point_list.count, sc, node->style.color_stroke,
            node->style.color_fill);
   } else if (node->type == GROUP) {
-    printf("[ID: %d] GROUPE\n", node->id);
+    printf("[ID: %d] GROUPE (Scale:x%.2f)\n", node->id, sc);
     print_recursive(node->data.group.head, depth + 1);
   }
-
   print_recursive(node->next, depth);
 }
 
@@ -128,6 +99,7 @@ int main(void) {
       printf("  delete ID\n");
       printf("  move ID DX DY\n");
       printf("  rotate ID ANGLE\n");
+      printf("  scale ID FACTEUR\n");
       printf("  flipx ID\n");
       printf("  flipy ID\n");
       printf("  color ID STROKE FILL\n");
@@ -232,7 +204,7 @@ int main(void) {
     } else if (strncmp(input, "create polyline", 15) == 0) {
       char stroke[32] = "black", fill[32] = "none";
       sscanf(input, "create polyline %31s %31s", stroke, fill);
-      shape_t *poly = create_polyline(scene, stroke, fill);
+      shape_t *poly = create_point_list_shape(scene, POLYLINE, stroke, fill);
       if (poly != NULL) {
         add_shape_to_scene(scene, poly);
         printf("> Polyline creee avec l'ID %d. Utilisez 'add_point ID x y'\n",
@@ -241,7 +213,7 @@ int main(void) {
     } else if (strncmp(input, "create polygon", 14) == 0) {
       char stroke[32] = "black", fill[32] = "none";
       sscanf(input, "create polygon %31s %31s", stroke, fill);
-      shape_t *poly = create_polygon(scene, stroke, fill);
+      shape_t *poly = create_point_list_shape(scene, POLYGON, stroke, fill);
       if (poly != NULL) {
         add_shape_to_scene(scene, poly);
         printf("> Polygon cree avec l'ID %d. Utilisez 'add_point ID x y'\n",
@@ -251,11 +223,8 @@ int main(void) {
       int id, x, y;
       if (sscanf(input, "add_point %d %d %d", &id, &x, &y) == 3) {
         shape_t *s = find_shape_by_id(scene->head, id);
-        if (s && (s->type == POLYLINE || s->type == POLYGON)) {
-          bool success = (s->type == POLYLINE) ? add_point_to_polyline(s, x, y)
-                                               : add_point_to_polygon(s, x, y);
-          if (success)
-            printf("> Point (%d,%d) ajoute.\n", x, y);
+        if (add_point(s, x, y)) {
+          printf("> Point (%d,%d) ajoute.\n", x, y);
         } else {
           printf("> ID %d introuvable ou mauvais type.\n", id);
         }
@@ -314,6 +283,16 @@ int main(void) {
         if (s) {
           s->transform.angle = (s->transform.angle + angle) % 360;
           printf("> Forme %d pivotee.\n", id);
+        }
+      }
+    } else if (strncmp(input, "scale", 5) == 0) {
+      int id;
+      float factor;
+      if (sscanf(input, "scale %d %f", &id, &factor) == 2) {
+        shape_t *s = find_shape_by_id(scene->head, id);
+        if (s) {
+          s->transform.scale_factor = factor;
+          printf("> Forme %d mise a l'echelle (x%.2f).\n", id, factor);
         }
       }
     } else if (strncmp(input, "flipx", 5) == 0) {

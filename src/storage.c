@@ -1,37 +1,21 @@
+#include "../include/storage.h"
+#include "../include/geometry.h"
+#include "../include/group.h"
+#include "../include/scene.h"
 #include "../include/types.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-extern shape_t *create_rectangle(scene_t *scene, int x, int y, int width,
-                                 int height, char *color_stroke,
-                                 char *color_fill);
-extern void add_shape_to_scene(scene_t *scene, shape_t *shape);
-extern scene_t *create_scene(int width, int height);
-extern shape_t *create_circle(scene_t *scene, int cx, int cy, int r,
-                              char *color_stroke, char *color_fill);
-extern shape_t *create_line(scene_t *scene, int x1, int y1, int x2, int y2,
-                            char *color_stroke, char *color_fill);
-extern shape_t *create_ellipse(scene_t *scene, int cx, int cy, int rx, int ry,
-                               char *color_stroke, char *color_fill);
-extern shape_t *create_polyline(scene_t *scene, char *color_stroke,
-                                char *color_fill);
-extern bool add_point_to_polyline(shape_t *shape, int x, int y);
-extern shape_t *create_polygon(scene_t *scene, char *color_stroke,
-                               char *color_fill);
-extern bool add_point_to_polygon(shape_t *shape, int x, int y);
-extern shape_t *create_group(scene_t *scene);
-extern void add_shape_to_group(shape_t *group, shape_t *child);
 
 static void save_shape_recursive(shape_t *shape, FILE *f, int depth) {
   if (shape == NULL)
     return;
 
   if (shape->type == GROUP) {
-    fprintf(f, "GROUP %d %d %d %d %d %d\n", shape->id, shape->transform.move_x,
-            shape->transform.move_y, shape->transform.angle,
-            shape->transform.invert_x ? 1 : 0,
-            shape->transform.invert_y ? 1 : 0);
+    fprintf(f, "GROUP %d %d %d %d %d %d %f\n", shape->id,
+            shape->transform.move_x, shape->transform.move_y,
+            shape->transform.angle, shape->transform.invert_x ? 1 : 0,
+            shape->transform.invert_y ? 1 : 0, shape->transform.scale_factor);
     shape_t *child = shape->data.group.head;
     while (child != NULL) {
       save_shape_recursive(child, f, depth + 1);
@@ -39,82 +23,66 @@ static void save_shape_recursive(shape_t *shape, FILE *f, int depth) {
     }
     fprintf(f, "END_GROUP\n");
   } else if (shape->type == RECTANGLE) {
-    char stroke[20] = "none", fill[20] = "none";
+    char stroke[32] = "none", fill[32] = "none";
     if (shape->style.color_stroke[0] != '\0')
       strcpy(stroke, shape->style.color_stroke);
     if (shape->style.color_fill[0] != '\0')
       strcpy(fill, shape->style.color_fill);
-    fprintf(f, "RECT %d %d %d %d %s %s %d %d %d %d %d\n", shape->data.rect.x,
+    fprintf(f, "RECT %d %d %d %d %s %s %d %d %d %d %d %f\n", shape->data.rect.x,
             shape->data.rect.y, shape->data.rect.width, shape->data.rect.height,
             stroke, fill, shape->transform.move_x, shape->transform.move_y,
             shape->transform.angle, shape->transform.invert_x ? 1 : 0,
-            shape->transform.invert_y ? 1 : 0);
+            shape->transform.invert_y ? 1 : 0, shape->transform.scale_factor);
   } else if (shape->type == CIRCLE) {
-    char stroke[20] = "none", fill[20] = "none";
+    char stroke[32] = "none", fill[32] = "none";
     if (shape->style.color_stroke[0] != '\0')
       strcpy(stroke, shape->style.color_stroke);
     if (shape->style.color_fill[0] != '\0')
       strcpy(fill, shape->style.color_fill);
-    fprintf(f, "CIRCLE %d %d %d %s %s %d %d %d %d %d\n", shape->data.circle.cx,
-            shape->data.circle.cy, shape->data.circle.r, stroke, fill,
-            shape->transform.move_x, shape->transform.move_y,
+    fprintf(f, "CIRCLE %d %d %d %s %s %d %d %d %d %d %f\n",
+            shape->data.circle.cx, shape->data.circle.cy, shape->data.circle.r,
+            stroke, fill, shape->transform.move_x, shape->transform.move_y,
             shape->transform.angle, shape->transform.invert_x ? 1 : 0,
-            shape->transform.invert_y ? 1 : 0);
+            shape->transform.invert_y ? 1 : 0, shape->transform.scale_factor);
   } else if (shape->type == ELLIPSE) {
-    char stroke[20] = "none", fill[20] = "none";
+    char stroke[32] = "none", fill[32] = "none";
     if (shape->style.color_stroke[0] != '\0')
       strcpy(stroke, shape->style.color_stroke);
     if (shape->style.color_fill[0] != '\0')
       strcpy(fill, shape->style.color_fill);
-    fprintf(f, "ELLIPSE %d %d %d %d %s %s %d %d %d %d %d\n",
+    fprintf(f, "ELLIPSE %d %d %d %d %s %s %d %d %d %d %d %f\n",
             shape->data.ellipse.cx, shape->data.ellipse.cy,
             shape->data.ellipse.rx, shape->data.ellipse.ry, stroke, fill,
             shape->transform.move_x, shape->transform.move_y,
             shape->transform.angle, shape->transform.invert_x ? 1 : 0,
-            shape->transform.invert_y ? 1 : 0);
+            shape->transform.invert_y ? 1 : 0, shape->transform.scale_factor);
   } else if (shape->type == LINE) {
-    char stroke[20] = "none", fill[20] = "none";
+    char stroke[32] = "none", fill[32] = "none";
     if (shape->style.color_stroke[0] != '\0')
       strcpy(stroke, shape->style.color_stroke);
     if (shape->style.color_fill[0] != '\0')
       strcpy(fill, shape->style.color_fill);
-    fprintf(f, "LINE %d %d %d %d %s %s %d %d %d %d %d\n", shape->data.line.p1.x,
-            shape->data.line.p1.y, shape->data.line.p2.x, shape->data.line.p2.y,
-            stroke, fill, shape->transform.move_x, shape->transform.move_y,
-            shape->transform.angle, shape->transform.invert_x ? 1 : 0,
-            shape->transform.invert_y ? 1 : 0);
-  } else if (shape->type == POLYLINE) {
-    char stroke[20] = "none", fill[20] = "none";
+    fprintf(f, "LINE %d %d %d %d %s %s %d %d %d %d %d %f\n",
+            shape->data.line.p1.x, shape->data.line.p1.y, shape->data.line.p2.x,
+            shape->data.line.p2.y, stroke, fill, shape->transform.move_x,
+            shape->transform.move_y, shape->transform.angle,
+            shape->transform.invert_x ? 1 : 0,
+            shape->transform.invert_y ? 1 : 0, shape->transform.scale_factor);
+  } else if (shape->type == POLYLINE || shape->type == POLYGON) {
+    char stroke[32] = "none", fill[32] = "none";
     if (shape->style.color_stroke[0] != '\0')
       strcpy(stroke, shape->style.color_stroke);
     if (shape->style.color_fill[0] != '\0')
       strcpy(fill, shape->style.color_fill);
 
-    fprintf(f, "POLYLINE %s %s %d %d %d %d %d %zu", stroke, fill,
+    const char *tag = (shape->type == POLYLINE) ? "POLYLINE" : "POLYGON";
+    fprintf(f, "%s %s %s %d %d %d %d %d %zu %f", tag, stroke, fill,
             shape->transform.move_x, shape->transform.move_y,
             shape->transform.angle, shape->transform.invert_x ? 1 : 0,
-            shape->transform.invert_y ? 1 : 0, shape->data.polyline.count);
+            shape->transform.invert_y ? 1 : 0, shape->data.point_list.count,
+            shape->transform.scale_factor);
 
-    point_node_t *pt = shape->data.polyline.head;
-    while (pt != NULL) {
-      fprintf(f, " %d,%d", pt->p.x, pt->p.y);
-      pt = pt->next;
-    }
-    fprintf(f, "\n");
-
-  } else if (shape->type == POLYGON) {
-    char stroke[20] = "none", fill[20] = "none";
-    if (shape->style.color_stroke[0] != '\0')
-      strcpy(stroke, shape->style.color_stroke);
-    if (shape->style.color_fill[0] != '\0')
-      strcpy(fill, shape->style.color_fill);
-
-    fprintf(f, "POLYGON %s %s %d %d %d %d %d %zu", stroke, fill,
-            shape->transform.move_x, shape->transform.move_y,
-            shape->transform.angle, shape->transform.invert_x ? 1 : 0,
-            shape->transform.invert_y ? 1 : 0, shape->data.polygon.count);
-
-    point_node_t *pt = shape->data.polygon.head;
+    point_node_t *pt = shape->data.point_list.head;
     while (pt != NULL) {
       fprintf(f, " %d,%d", pt->p.x, pt->p.y);
       pt = pt->next;
@@ -178,8 +146,9 @@ scene_t *load_project(const char *filename) {
       }
     } else if (strncmp(line, "GROUP", 5) == 0 && new_scene != NULL) {
       int id, mx, my, angle, ix, iy;
-      if (sscanf(line, "GROUP %d %d %d %d %d %d", &id, &mx, &my, &angle, &ix,
-                 &iy) == 6) {
+      float scale = 1.0f;
+      if (sscanf(line, "GROUP %d %d %d %d %d %d %f", &id, &mx, &my, &angle, &ix,
+                 &iy, &scale) == 7) {
         shape_t *group = create_group(new_scene);
         if (group) {
           group->id = id;
@@ -198,9 +167,11 @@ scene_t *load_project(const char *filename) {
         stack_depth--;
     } else if (strncmp(line, "RECT", 4) == 0 && new_scene != NULL) {
       int x, y, w, h, mx, my, angle, ix, iy;
+      float scale = 1.0f;
       char stroke[20], fill[20];
-      if (sscanf(line, "RECT %d %d %d %d %19s %19s %d %d %d %d %d", &x, &y, &w,
-                 &h, stroke, fill, &mx, &my, &angle, &ix, &iy) == 11) {
+      if (sscanf(line, "RECT %d %d %d %d %19s %19s %d %d %d %d %d %f", &x, &y,
+                 &w, &h, stroke, fill, &mx, &my, &angle, &ix, &iy,
+                 &scale) == 12) {
         if (strcmp(stroke, "none") == 0)
           stroke[0] = '\0';
         if (strcmp(fill, "none") == 0)
@@ -216,9 +187,10 @@ scene_t *load_project(const char *filename) {
       }
     } else if (strncmp(line, "CIRCLE", 6) == 0 && new_scene != NULL) {
       int cx, cy, r, mx, my, angle, ix, iy;
+      float scale = 1.0f;
       char stroke[20], fill[20];
-      if (sscanf(line, "CIRCLE %d %d %d %19s %19s %d %d %d %d %d", &cx, &cy, &r,
-                 stroke, fill, &mx, &my, &angle, &ix, &iy) == 10) {
+      if (sscanf(line, "CIRCLE %d %d %d %19s %19s %d %d %d %d %d %f", &cx, &cy,
+                 &r, stroke, fill, &mx, &my, &angle, &ix, &iy, &scale) == 11) {
         if (strcmp(stroke, "none") == 0)
           stroke[0] = '\0';
         if (strcmp(fill, "none") == 0)
@@ -234,9 +206,11 @@ scene_t *load_project(const char *filename) {
       }
     } else if (strncmp(line, "ELLIPSE", 7) == 0 && new_scene != NULL) {
       int cx, cy, rx, ry, mx, my, angle, ix, iy;
+      float scale = 1.0f;
       char stroke[20], fill[20];
-      if (sscanf(line, "ELLIPSE %d %d %d %d %19s %19s %d %d %d %d %d", &cx, &cy,
-                 &rx, &ry, stroke, fill, &mx, &my, &angle, &ix, &iy) == 11) {
+      if (sscanf(line, "ELLIPSE %d %d %d %d %19s %19s %d %d %d %d %d %f", &cx,
+                 &cy, &rx, &ry, stroke, fill, &mx, &my, &angle, &ix, &iy,
+                 &scale) == 12) {
         if (strcmp(stroke, "none") == 0)
           stroke[0] = '\0';
         if (strcmp(fill, "none") == 0)
@@ -252,9 +226,11 @@ scene_t *load_project(const char *filename) {
       }
     } else if (strncmp(line, "LINE", 4) == 0 && new_scene != NULL) {
       int x1, y1, x2, y2, mx, my, angle, ix, iy;
+      float scale = 1.0f;
       char stroke[20], fill[20];
-      if (sscanf(line, "LINE %d %d %d %d %19s %19s %d %d %d %d %d", &x1, &y1,
-                 &x2, &y2, stroke, fill, &mx, &my, &angle, &ix, &iy) == 11) {
+      if (sscanf(line, "LINE %d %d %d %d %19s %19s %d %d %d %d %d %f", &x1, &y1,
+                 &x2, &y2, stroke, fill, &mx, &my, &angle, &ix, &iy,
+                 &scale) == 12) {
         if (strcmp(stroke, "none") == 0)
           stroke[0] = '\0';
         if (strcmp(fill, "none") == 0)
@@ -272,17 +248,19 @@ scene_t *load_project(const char *filename) {
     } else if (strncmp(line, "POLYLINE", 8) == 0 && new_scene != NULL) {
       char stroke[20], fill[20];
       int mx, my, angle, ix, iy;
+      float scale = 1.0f;
       size_t count;
 
-      if (sscanf(line, "POLYLINE %19s %19s %d %d %d %d %d %zu", stroke, fill,
-                 &mx, &my, &angle, &ix, &iy, &count) == 8) {
+      if (sscanf(line, "POLYLINE %19s %19s %d %d %d %d %d %zu %f", stroke, fill,
+                 &mx, &my, &angle, &ix, &iy, &count, &scale) == 9) {
 
         if (strcmp(stroke, "none") == 0)
           stroke[0] = '\0';
         if (strcmp(fill, "none") == 0)
           fill[0] = '\0';
 
-        shape_t *poly = create_polyline(new_scene, stroke, fill);
+        shape_t *poly =
+            create_point_list_shape(new_scene, POLYLINE, stroke, fill);
         if (poly != NULL) {
           char *ptr = line;
           int spaces = 0;
@@ -295,7 +273,7 @@ scene_t *load_project(const char *filename) {
           for (size_t i = 0; i < count; i++) {
             int x, y;
             if (sscanf(ptr, "%d,%d", &x, &y) == 2) {
-              add_point_to_polyline(poly, x, y);
+              add_point(poly, x, y);
               while (*ptr && *ptr != ' ')
                 ptr++;
               while (*ptr == ' ')
@@ -315,18 +293,20 @@ scene_t *load_project(const char *filename) {
 
     } else if (strncmp(line, "POLYGON", 7) == 0 && new_scene != NULL) {
       char stroke[20], fill[20];
+      float scale = 1.0f;
       int mx, my, angle, ix, iy;
       size_t count;
 
-      if (sscanf(line, "POLYGON %19s %19s %d %d %d %d %d %zu", stroke, fill,
-                 &mx, &my, &angle, &ix, &iy, &count) == 8) {
+      if (sscanf(line, "POLYGON %19s %19s %d %d %d %d %d %zu %f", stroke, fill,
+                 &mx, &my, &angle, &ix, &iy, &count, &scale) == 9) {
 
         if (strcmp(stroke, "none") == 0)
           stroke[0] = '\0';
         if (strcmp(fill, "none") == 0)
           fill[0] = '\0';
 
-        shape_t *poly = create_polygon(new_scene, stroke, fill);
+        shape_t *poly =
+            create_point_list_shape(new_scene, POLYGON, stroke, fill);
         if (poly != NULL) {
           char *ptr = line;
           int spaces = 0;
@@ -339,7 +319,7 @@ scene_t *load_project(const char *filename) {
           for (size_t i = 0; i < count; i++) {
             int x, y;
             if (sscanf(ptr, "%d,%d", &x, &y) == 2) {
-              add_point_to_polygon(poly, x, y);
+              add_point(poly, x, y);
               while (*ptr && *ptr != ' ')
                 ptr++;
               while (*ptr == ' ')
