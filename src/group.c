@@ -35,18 +35,18 @@ void detach_shape(shape_t *shape, scene_t *scene) {
 void remove_from_group(scene_t *scene, int target_id) {
   shape_t *to_remove = find_shape_by_id(scene->head, target_id);
   if (to_remove == NULL) {
-    printf("> ID %d introuvable.\n", target_id);
+    printf("> ID %d not found.\n", target_id);
     return;
   }
   if (to_remove->parent == NULL) {
-    printf("> La forme %d n'est pas dans un groupe.\n", target_id);
+    printf("> Shape %d is not in a group.\n", target_id);
     return;
   }
 
   detach_shape(to_remove, scene);
   add_shape_to_scene(scene, to_remove);
 
-  printf("> Forme %d retiree de son groupe et remise dans la scene.\n",
+  printf("> Shape %d removed from its group and placed back in the scene.\n",
          target_id);
 }
 

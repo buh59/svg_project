@@ -53,7 +53,6 @@ static void write_transform(FILE *f, shape_t *shape) {
   int cx_final = cx + shape->transform.move_x;
   int cy_final = cy + shape->transform.move_y;
 
-  // Utilisation de %.2f pour le SVG
   fprintf(f,
           "transform=\"translate(%d %d) rotate(%d) scale(%.2f %.2f) "
           "translate(%d %d)\"",
@@ -154,7 +153,7 @@ void export_to_svg(scene_t *scene, const char *filename) {
     return;
   FILE *f = fopen(filename, "w");
   if (f == NULL) {
-    printf("Erreur : impossible de creer le fichier %s\n", filename);
+    printf("Error: could not create file %s\n", filename);
     return;
   }
 
@@ -174,7 +173,7 @@ void export_to_svg(scene_t *scene, const char *filename) {
 
   fprintf(f, "</svg>\n");
   fclose(f);
-  printf("> Rendu SVG genere dans %s.\n", filename);
+  printf("> SVG render generated in %s.\n", filename);
 
   char cmd[100];
   sprintf(cmd, "xdg-open %s &", filename);

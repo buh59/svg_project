@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 /**
- * @brief Enumération des types de formes géométriques supportées.
+ * @brief Enumeration of supported geometric shape types.
  */
 typedef enum {
   CIRCLE,
@@ -18,7 +18,7 @@ typedef enum {
 } shape_type_t;
 
 /**
- * @brief Structure représentant des coordonnées 2D.
+ * @brief Structure representing 2D coordinates.
  */
 typedef struct point_s {
   int x;
@@ -26,7 +26,7 @@ typedef struct point_s {
 } point_t;
 
 /**
- * @brief Nœud d'une liste chaînée de points (pour polylignes et polygones).
+ * @brief Node in a linked list of points (for polylines and polygons).
  */
 typedef struct point_node_s {
   point_t p;
@@ -34,7 +34,7 @@ typedef struct point_node_s {
 } point_node_t;
 
 /**
- * @brief Structure regroupant les transformations applicables à une forme.
+ * @brief Structure grouping transformations applicable to a shape.
  */
 typedef struct transformation_s {
   int move_x;
@@ -46,7 +46,7 @@ typedef struct transformation_s {
 } transformation_t;
 
 /**
- * @brief Structure définissant le style visuel d'une forme.
+ * @brief Structure defining the visual style of a shape.
  */
 typedef struct colors_s {
   char color_stroke[32];
@@ -54,19 +54,17 @@ typedef struct colors_s {
 } colors_t;
 
 /**
- * @brief Nœud principal de l'arbre (Grammaire Abstraite) représentant une forme
- * ou un groupe.
+ * @brief Main tree node (Abstract Grammar) representing a shape
+ * or a group.
  */
 typedef struct shape_s {
   int id;
   shape_type_t type;
 
-  // Pointeurs de l'arbre N-aire (Liste Doublement Chaînée)
-  struct shape_s *prev;   // Frère précédent
-  struct shape_s *next;   // Frère suivant
-  struct shape_s *parent; // Parent (groupe)
+  struct shape_s *prev;
+  struct shape_s *next;
+  struct shape_s *parent;
 
-  // Données spécifiques au type de la forme
   union {
     struct {
       int cx, cy, r;
@@ -86,8 +84,8 @@ typedef struct shape_s {
       size_t count;
     } point_list;
     struct {
-      struct shape_s *head; // Premier enfant du groupe
-      struct shape_s *tail; // Dernier enfant du groupe
+      struct shape_s *head;
+      struct shape_s *tail;
     } group;
   } data;
 
@@ -96,15 +94,15 @@ typedef struct shape_s {
 } shape_t;
 
 /**
- * @brief Structure racine représentant l'espace de travail SVG.
+ * @brief Structure representing the SVG workspace root.
  */
 typedef struct scene_s {
   int view_width;
   int view_height;
-  shape_t *head; // Première forme racine
-  shape_t *tail; // Dernière forme racine
+  shape_t *head;
+  shape_t *tail;
   size_t element_count;
-  int next_id; // Compteur global pour garantir des IDs uniques
+  int next_id;
 } scene_t;
 
 #endif

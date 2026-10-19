@@ -4,10 +4,10 @@
 #include "types.h"
 
 /**
- * @brief Parcourt l'arbre des formes et génère un fichier texte au format SVG
- * standard.
- * @param scene Pointeur vers la scène contenant les données à exporter.
- * @param filename Nom du fichier de destination (ex: "rendu.svg").
+ * @brief Traverses the shape tree and generates a text file in standard SVG
+ * format.
+ * @param scene Pointer to the scene containing the data to export.
+ * @param filename The name of the destination file (e.g., "render.svg").
  */
 void export_to_svg(scene_t *scene, const char *filename);
 

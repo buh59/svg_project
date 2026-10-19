@@ -4,18 +4,17 @@
 #include "types.h"
 
 /**
- * @brief Sauvegarde la scène entière et ses transformations dans un fichier
- * texte brut.
- * @param scene La scène courante à sérialiser.
- * @param filename Le nom du fichier de sauvegarde.
+ * @brief Saves the entire scene and its transformations into a plain text file.
+ * @param scene The current scene to serialize.
+ * @param filename The name of the save file.
  */
 void save_project(scene_t *scene, const char *filename);
 
 /**
- * @brief Lit un fichier de sauvegarde, alloue la mémoire et reconstruit l'arbre
- * complet (Grammaire Algébrique).
- * @param filename Le nom du fichier à charger.
- * @return Pointeur vers la nouvelle scène reconstruite, ou NULL en cas d'échec.
+ * @brief Loads a save file, allocates memory, and reconstructs the entire tree
+ * (Algebraic Grammar).
+ * @param filename The name of the file to load.
+ * @return A pointer to the newly reconstructed scene, or NULL if loading fails.
  */
 scene_t *load_project(const char *filename);
 

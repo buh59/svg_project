@@ -71,7 +71,7 @@ void free_scene(scene_t *scene) {
 void delete_shape(scene_t *scene, int target_id) {
   shape_t *to_delete = find_shape_by_id(scene->head, target_id);
   if (to_delete == NULL) {
-    printf("> ID %d introuvable.\n", target_id);
+    printf("> ID %d not found.\n", target_id);
     return;
   }
 
@@ -96,5 +96,5 @@ void delete_shape(scene_t *scene, int target_id) {
   }
 
   free_shape(to_delete);
-  printf("> Forme %d supprimee avec succes.\n", target_id);
+  printf("> Shape %d deleted successfully.\n", target_id);
 }

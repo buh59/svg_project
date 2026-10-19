@@ -96,7 +96,7 @@ void save_project(scene_t *scene, const char *filename) {
     return;
   FILE *f = fopen(filename, "w");
   if (f == NULL) {
-    printf("Erreur : impossible d'ouvrir %s pour la sauvegarde.\n", filename);
+    printf("Error: unable to open %s for saving.\n", filename);
     return;
   }
   fprintf(f, "SCENE %d %d %d\n", scene->view_width, scene->view_height,
@@ -109,7 +109,7 @@ void save_project(scene_t *scene, const char *filename) {
   }
 
   fclose(f);
-  printf("> Projet sauvegarde avec succes dans '%s'.\n", filename);
+  printf("> Project saved successfully in '%s'.\n", filename);
 }
 
 static void apply_transform(shape_t *shape, int mx, int my, int angle, int ix,
@@ -124,7 +124,7 @@ static void apply_transform(shape_t *shape, int mx, int my, int angle, int ix,
 scene_t *load_project(const char *filename) {
   FILE *f = fopen(filename, "r");
   if (f == NULL) {
-    printf("Erreur : impossible de lire %s.\n", filename);
+    printf("Error: unable to read %s.\n", filename);
     return NULL;
   }
 
@@ -340,6 +340,6 @@ scene_t *load_project(const char *filename) {
   }
 
   fclose(f);
-  printf("> Projet charge avec succes depuis '%s'.\n", filename);
+  printf("> Project loaded successfully from '%s'.\n", filename);
   return new_scene;
 }

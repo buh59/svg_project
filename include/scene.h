@@ -3,17 +3,33 @@
 
 #include "types.h"
 
-/** @brief Alloue la scène principale. */
+/**
+ * @brief Allocates and initializes the main SVG scene structure (viewport).
+ * @param width The width of the viewport.
+ * @param height The height of the viewport.
+ * @return scene_t* A pointer to the newly created scene, or NULL on failure.
+ */
 scene_t *create_scene(int width, int height);
 
-/** @brief Libère intégralement la mémoire de la scène et de ses enfants. */
+/**
+ * @brief Completely frees the memory occupied by the scene and all its
+ * contained shapes recursively.
+ * @param scene Pointer to the scene to destroy.
+ */
 void free_scene(scene_t *scene);
 
-/** @brief Libère la mémoire d'une forme spécifique (et de ses enfants si c'est
- * un groupe). */
+/**
+ * @brief Frees the memory of a specific shape (and its children if it is a
+ * group).
+ * @param shape Pointer to the shape to destroy.
+ */
 void free_shape(shape_t *shape);
 
-/** @brief Isole une forme de l'arbre et libère sa mémoire. */
+/**
+ * @brief Isolates a shape from the tree and frees its memory.
+ * @param scene Pointer to the current scene.
+ * @param target_id The ID of the shape to delete.
+ */
 void delete_shape(scene_t *scene, int target_id);
 
 #endif
