@@ -1,55 +1,23 @@
+#define _POSIX_C_SOURCE 200809L
+#include "../include/export.h"
+#include "../include/geometry.h"
 #include "../include/types.h"
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-static void get_local_center(shape_t *shape, int *cx, int *cy) {
-  switch (shape->type) {
-  case RECTANGLE:
-    *cx = shape->data.rect.x + shape->data.rect.width / 2;
-    *cy = shape->data.rect.y + shape->data.rect.height / 2;
-    break;
-  case CIRCLE:
-    *cx = shape->data.circle.cx;
-    *cy = shape->data.circle.cy;
-    break;
-  case ELLIPSE:
-    *cx = shape->data.ellipse.cx;
-    *cy = shape->data.ellipse.cy;
-    break;
-  case LINE:
-    *cx = (shape->data.line.p1.x + shape->data.line.p2.x) / 2;
-    *cy = (shape->data.line.p1.y + shape->data.line.p2.y) / 2;
-    break;
-  case POLYLINE:
-  case POLYGON: {
-    point_node_t *pt = shape->data.point_list.head;
-    int sum_x = 0, sum_y = 0;
-    size_t count = 0;
-    while (pt) {
-      sum_x += pt->p.x;
-      sum_y += pt->p.y;
-      count++;
-      pt = pt->next;
-    }
-    *cx = (count > 0) ? sum_x / count : 0;
-    *cy = (count > 0) ? sum_y / count : 0;
-    break;
-  }
-  default:
-    *cx = 0;
-    *cy = 0;
-  }
-}
+static const char *paint(const char *c) { return c[0] ? c : "none"; }
 
-static void write_transform(FILE *f, shape_t *shape) {
+static void write_transform(FILE *f, const shape_t *shape) {
   float sx = (shape->transform.invert_x ? -1.0f : 1.0f) *
              shape->transform.scale_factor;
   float sy = (shape->transform.invert_y ? -1.0f : 1.0f) *
              shape->transform.scale_factor;
 
   int cx, cy;
-  get_local_center(shape, &cx, &cy);
+  get_local_center((shape_t *)shape, &cx, &cy);
   int cx_final = cx + shape->transform.move_x;
   int cy_final = cy + shape->transform.move_y;
 
@@ -59,93 +27,84 @@ static void write_transform(FILE *f, shape_t *shape) {
           cx_final, cy_final, shape->transform.angle, sx, sy, -cx, -cy);
 }
 
-static void export_shape_recursive(shape_t *shape, FILE *f, int depth) {
-  if (shape == NULL)
-    return;
-
+static void indent(FILE *f, int depth) {
   for (int i = 0; i < depth; i++)
     fprintf(f, "  ");
+}
 
-  if (shape->type == GROUP) {
-    int sx = shape->transform.invert_x ? -1 : 1;
-    int sy = shape->transform.invert_y ? -1 : 1;
+static void export_shape(const shape_t *shape, FILE *f, int depth) {
+  indent(f, depth);
+
+  switch (shape->type) {
+  case GROUP: {
+
+    float sx = (shape->transform.invert_x ? -1.0f : 1.0f) *
+               shape->transform.scale_factor;
+    float sy = (shape->transform.invert_y ? -1.0f : 1.0f) *
+               shape->transform.scale_factor;
     fprintf(f,
             "<g id=\"group_%d\" transform=\"translate(%d %d) rotate(%d) "
-            "scale(%d %d)\">\n",
+            "scale(%.2f %.2f)\">\n",
             shape->id, shape->transform.move_x, shape->transform.move_y,
             shape->transform.angle, sx, sy);
-
-    shape_t *child = shape->data.group.head;
-    while (child != NULL) {
-      export_shape_recursive(child, f, depth + 1);
-      child = child->next;
-    }
-    for (int i = 0; i < depth; i++)
-      fprintf(f, "  ");
+    for (const shape_t *c = shape->data.group.head; c != NULL; c = c->next)
+      export_shape(c, f, depth + 1);
+    indent(f, depth);
     fprintf(f, "</g>\n");
-  } else {
-    switch (shape->type) {
-    case RECTANGLE:
-      fprintf(f,
-              "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" "
-              "fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
-              shape->data.rect.x, shape->data.rect.y, shape->data.rect.width,
-              shape->data.rect.height, shape->style.color_fill,
-              shape->style.color_stroke);
-      write_transform(f, shape);
-      fprintf(f, " />\n");
-      break;
-    case CIRCLE:
-      fprintf(f,
-              "<circle cx=\"%d\" cy=\"%d\" r=\"%d\" "
-              "fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
-              shape->data.circle.cx, shape->data.circle.cy,
-              shape->data.circle.r, shape->style.color_fill,
-              shape->style.color_stroke);
-      write_transform(f, shape);
-      fprintf(f, " />\n");
-      break;
-    case ELLIPSE:
-      fprintf(f,
-              "<ellipse cx=\"%d\" cy=\"%d\" rx=\"%d\" ry=\"%d\" "
-              "fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
-              shape->data.ellipse.cx, shape->data.ellipse.cy,
-              shape->data.ellipse.rx, shape->data.ellipse.ry,
-              shape->style.color_fill, shape->style.color_stroke);
-      write_transform(f, shape);
-      fprintf(f, " />\n");
-      break;
-    case LINE:
-      fprintf(f,
-              "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" "
-              "stroke=\"%s\" stroke-width=\"3\" ",
-              shape->data.line.p1.x, shape->data.line.p1.y,
-              shape->data.line.p2.x, shape->data.line.p2.y,
-              shape->style.color_stroke);
-      write_transform(f, shape);
-      fprintf(f, " />\n");
-      break;
-    case POLYLINE:
-    case POLYGON: {
-      const char *tag = (shape->type == POLYLINE) ? "polyline" : "polygon";
-      fprintf(f, "<%s points=\"", tag);
-      point_node_t *pt = shape->data.point_list.head;
-      while (pt) {
-        fprintf(f, "%d,%d ", pt->p.x, pt->p.y);
-        pt = pt->next;
-      }
-      fprintf(f, "\" fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
-              shape->style.color_fill, shape->style.color_stroke);
-      write_transform(f, shape);
-      fprintf(f, " />\n");
-      break;
-    }
-    default:
-      break;
-    }
+    break;
   }
-
-  export_shape_recursive(shape->next, f, depth);
+  case RECTANGLE:
+    fprintf(f,
+            "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" "
+            "fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
+            shape->data.rect.x, shape->data.rect.y, shape->data.rect.width,
+            shape->data.rect.height, paint(shape->style.color_fill),
+            paint(shape->style.color_stroke));
+    write_transform(f, shape);
+    fprintf(f, " />\n");
+    break;
+  case CIRCLE:
+    fprintf(f,
+            "<circle cx=\"%d\" cy=\"%d\" r=\"%d\" "
+            "fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
+            shape->data.circle.cx, shape->data.circle.cy, shape->data.circle.r,
+            paint(shape->style.color_fill), paint(shape->style.color_stroke));
+    write_transform(f, shape);
+    fprintf(f, " />\n");
+    break;
+  case ELLIPSE:
+    fprintf(f,
+            "<ellipse cx=\"%d\" cy=\"%d\" rx=\"%d\" ry=\"%d\" "
+            "fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
+            shape->data.ellipse.cx, shape->data.ellipse.cy,
+            shape->data.ellipse.rx, shape->data.ellipse.ry,
+            paint(shape->style.color_fill), paint(shape->style.color_stroke));
+    write_transform(f, shape);
+    fprintf(f, " />\n");
+    break;
+  case LINE:
+    fprintf(f,
+            "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" "
+            "stroke=\"%s\" stroke-width=\"3\" ",
+            shape->data.line.p1.x, shape->data.line.p1.y, shape->data.line.p2.x,
+            shape->data.line.p2.y, paint(shape->style.color_stroke));
+    write_transform(f, shape);
+    fprintf(f, " />\n");
+    break;
+  case POLYLINE:
+  case POLYGON: {
+    const char *tag = (shape->type == POLYLINE) ? "polyline" : "polygon";
+    fprintf(f, "<%s points=\"", tag);
+    for (const point_node_t *pt = shape->data.point_list.head; pt;
+         pt = pt->next)
+      fprintf(f, "%d,%d ", pt->p.x, pt->p.y);
+    fprintf(f, "\" fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
+            paint(shape->style.color_fill), paint(shape->style.color_stroke));
+    write_transform(f, shape);
+    fprintf(f, " />\n");
+    break;
+  }
+  }
 }
 
 void export_to_svg(scene_t *scene, const char *filename) {
@@ -167,15 +126,22 @@ void export_to_svg(scene_t *scene, const char *filename) {
       "  <rect x=\"0\" y=\"0\" width=\"%d\" height=\"%d\" fill=\"white\" />\n",
       scene->view_width, scene->view_height);
 
-  if (scene->head != NULL) {
-    export_shape_recursive(scene->head, f, 1);
-  }
+  for (const shape_t *s = scene->head; s != NULL; s = s->next)
+    export_shape(s, f, 1);
 
   fprintf(f, "</svg>\n");
-  fclose(f);
+  if (fclose(f) != 0) {
+    printf("Error: failed while writing %s\n", filename);
+    return;
+  }
   printf("> SVG render generated in %s.\n", filename);
+}
 
-  char cmd[100];
-  sprintf(cmd, "xdg-open %s &", filename);
-  system(cmd);
+void open_in_viewer(const char *filename) {
+  signal(SIGCHLD, SIG_IGN);
+  pid_t pid = fork();
+  if (pid == 0) {
+    execlp("xdg-open", "xdg-open", filename, (char *)NULL);
+    _exit(127);
+  }
 }

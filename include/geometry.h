@@ -5,6 +5,14 @@
 #include <stdbool.h>
 
 /**
+ * @brief Calculates the local geometric center (barycenter) of a shape.
+ * @param shape Pointer to the shape.
+ * @param cx Output pointer for the calculated X center.
+ * @param cy Output pointer for the calculated Y center.
+ */
+void get_local_center(shape_t *shape, int *cx, int *cy);
+
+/**
  * @brief Utility function to allocate the base shape structure.
  *
  * This function initializes a shape with default transforms and style settings.
@@ -92,5 +100,15 @@ shape_t *create_point_list_shape(scene_t *scene, shape_type_t type,
  * @return bool true if the point was added successfully, false otherwise.
  */
 bool add_point(shape_t *shape, int x, int y);
+
+/**
+ * @brief Crée une forme complexe "Steamhappy" sous forme de groupe d'ellipses.
+ * @param scene Pointeur vers la scène.
+ * @param cx Position X du centre.
+ * @param cy Position Y du centre.
+ * @param size Taille/rayon de référence en pixels (ex: 100).
+ * @return Pointeur vers le groupe créé.
+ */
+shape_t *create_steamhappy(scene_t *scene, int cx, int cy, int size);
 
 #endif
