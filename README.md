@@ -1,51 +1,63 @@
-# SVG Editor
+# SVG Editor in C Setup & Guide
 
-**SVG Studio** est un éditeur graphique vectoriel interactif en ligne de commande (TUI), développé entièrement en **C99 strict**. Il permet de créer, manipuler, organiser en groupes et exporter des formes géométriques au format standard SVG.
+A lightweight, terminal-based vector graphics editor and renderer written in C99.
 
-L'interface utilisateur a été pensée pour offrir une expérience ergonomique ("Focus Mode"), remplaçant les longues commandes textuelles par des menus interactifs, sécurisés et visuellement agréables, sans nécessiter la moindre librairie externe.
+![CLI Demo](assets/demo.gif)
 
----
+## What it does
 
-## ✨ Fonctionnalités Principales
+- Manages 2D scenes using shapes (Rectangles, Squares, Circles, Ellipses, Lines, Polylines, Polygons)
 
-- **🧰 Formes supportées :** Rectangles, Carrés, Cercles, Ellipses, Lignes, Polylignes et Polygones.
-- **📐 Transformations Mathématiques :** Déplacement (Translation), Rotation, Mise à l'échelle (Scale factor), et Inversions axiales (Flip X / Flip Y).
-- **📁 Arbre N-aire (Groupes) :** Regroupement de formes à l'infini. Les transformations appliquées à un groupe se répercutent mathématiquement sur tous ses enfants.
-- **💾 Double Sauvegarde Automatique :**
-  - Un fichier de travail interne (`.mysvg`) pour conserver l'arborescence.
-  - Un export standard (`.svg`) lisible par n'importe quel navigateur web.
-- **🛡️ Saisies Sécurisées :** L'interface ne crashe jamais grâce à un buffer de lecture personnalisé (`fgets`) qui remplace les appels `scanf` instables.
+- Applies cascading transformations (translation, rotation, scaling, and horizontal/vertical flips) across groups
 
----
+- Saves and loads project state in a custom `.mysvg` format preserving complete node hierarchies and shape IDs
 
-## 🏗️ Architecture et Choix Techniques
+- Exports `.svg` files and launches system viewers (`xdg-open`)
 
-Ce projet repose sur une séparation stricte des responsabilités (fichiers `.h` et `.c` modulaires) et sur des structures de données avancées :
+After compiling the project, you can launch the interactive terminal application to create, edit, group, and export vector graphics.
 
-1. **Graphe de Scène (Scene Graph) :**
-   Les éléments sont stockés sous la forme d'un **arbre N-aire** couplé à des **listes doublement chaînées**. Cela permet un parcours récursif fluide lors du rendu SVG et une gestion propre des profondeurs de groupes.
-   Une sécurité anti-boucle infinie (`is_ancestor`) empêche un groupe de s'ajouter à lui-même.
+## Instructions
 
-2. **Système de Sauvegarde (Grammaire Algébrique) :**
-   Plutôt que d'intégrer un analyseur XML lourd et risqué pour la mémoire, le projet utilise un langage de sauvegarde personnalisé (`.mysvg`). Lors du chargement, le fichier est parsé via un **Automate à Pile** (Pushdown Automaton), ce qui permet de reconstituer parfaitement l'arbre N-aire et les imbrications de groupes.
+1. Clone or download the project repository to your Linux environment.
 
-3. **Gestion de la Mémoire :**
-   L'ensemble du cycle de vie des formes (allocation, détachement, suppression récursive) a été rigoureusement testé. Le projet ne présente **aucune fuite mémoire** (Vérifié avec `Valgrind`).
+2. Open your terminal inside the project directory and compile:
 
----
+   ```bash
+   make clean && make build
+   ```
 
-## ⚙️ Compilation et Exécution
+3. Run the application:
 
-Ce projet utilise le compilateur **GCC** et respecte la norme **C99**. Aucune librairie externe n'a été utilisée.
+   ```bash
+   ./editor_svg
+   ```
 
-### Commandes Makefile
+> [!WARNING]
+> **Compilation Standards**
+>
+> The project compiles with strict GCC flags (`-std=c99 -Wall -Werror -Wextra`). Ensure your local compiler supports C99.
 
-Conformément aux directives, le projet se gère via les commandes suivantes :
+> [!NOTE]
+> **Missing SVG Viewer Error**
+>
+> If option `[7] Visualization` outputs an error opening `xdg-open`, ensure a default browser or vector viewer is installed on your Linux desktop environment, or open the generated `render.svg` manually in Chrome/Firefox.
 
-```bash
-# Compiler le projet et générer l'exécutable
-make build
+## Usage Steps
 
-# Nettoyer les fichiers objets et l'exécutable
-make clean
-```
+1. **Create Shapes (`[1]`)**: Select a shape type and provide dimensions/colors.
+
+2. **Transform (`[3]`)**: Apply moves, rotations, or scaling factors to individual elements or entire groups.
+
+3. **Group Elements (`[4]`)**: Move shapes into groups to organize your N-ary tree hierarchy.
+
+4. **Save/Load (`[6]`)**: Save your work as a `.mysvg` project file or load a previous project.
+
+5. **Export (`[7]`)**: Compile your scene into a `.svg` vector file and view the output.
+
+6. **Enjoy!**
+
+## Visual Results & Comparison
+
+### 1 to 1 real steamhappy and steamhappy using this svg editor
+
+![Original](assets/real_steamhappy.webp) ![Rendu C](assets/steamhappy_svg_editor.png)
