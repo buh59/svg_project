@@ -185,13 +185,8 @@ shape_t *create_steamhappy(scene_t *scene, int cx, int cy, int size) {
   if (!group)
     return NULL;
 
-  // L'ellipse du corps fait 32 de rayon (64 de large).
-  // Ce calcul permet à `size=100` d'avoir une largeur d'environ 100 pixels.
   float s = (float)size / 64.0f;
 
-  // ==========================================
-  // CALQUE 1 : ARRIÈRE-PLAN (Bras & Jambes)
-  // ==========================================
   shape_t *leg_r =
       create_ellipse(scene, cx + (int)(5 * s), cy + (int)(36 * s), (int)(4 * s),
                      (int)(9 * s), "black", "#404017");
@@ -224,17 +219,11 @@ shape_t *create_steamhappy(scene_t *scene, int cx, int cy, int size) {
     add_shape_to_group(group, arm_r);
   }
 
-  // ==========================================
-  // CALQUE 2 : CORPS PRINCIPAL
-  // ==========================================
   shape_t *body = create_ellipse(scene, cx, cy, (int)(32 * s), (int)(38 * s),
                                  "black", "#edc40c");
   if (body)
     add_shape_to_group(group, body);
 
-  // ==========================================
-  // CALQUE 3 : BOUCHE, DENTS, LANGUE & JOUES
-  // ==========================================
   shape_t *mouth =
       create_ellipse(scene, cx + (int)(1 * s), cy + (int)(1 * s), (int)(11 * s),
                      (int)(20 * s), "#000000", "black");
@@ -260,7 +249,6 @@ shape_t *create_steamhappy(scene_t *scene, int cx, int cy, int size) {
   if (tongue3)
     add_shape_to_group(group, tongue3);
 
-  // Dents du bas
   shape_t *tb1 = create_ellipse(scene, cx + (int)(2 * s), cy + (int)(19 * s),
                                 (int)(1 * s), (int)(1.4 * s), "none", "white");
   shape_t *tb2 =
@@ -283,7 +271,6 @@ shape_t *create_steamhappy(scene_t *scene, int cx, int cy, int size) {
     add_shape_to_group(group, tb4);
   }
 
-  // Dents du haut
   shape_t *tt1 = create_ellipse(scene, cx + (int)(1 * s), cy - (int)(17 * s),
                                 (int)(1.5 * s), (int)(2 * s), "none", "white");
   shape_t *tt2 =
@@ -299,7 +286,6 @@ shape_t *create_steamhappy(scene_t *scene, int cx, int cy, int size) {
   if (tt3)
     add_shape_to_group(group, tt3);
 
-  // Joues
   shape_t *cheek_l =
       create_ellipse(scene, cx - (int)(9 * s), cy - (int)(17 * s), (int)(6 * s),
                      (int)(5 * s), "black", "#edc40c");
@@ -314,9 +300,6 @@ shape_t *create_steamhappy(scene_t *scene, int cx, int cy, int size) {
     add_shape_to_group(group, cheek_r);
   }
 
-  // ==========================================
-  // CALQUE 4 : YEUX
-  // ==========================================
   shape_t *eye_l =
       create_ellipse(scene, cx - (int)(8 * s), cy - (int)(35 * s),
                      (int)(10 * s), (int)(13 * s), "#000000", "#e8e8e8");
