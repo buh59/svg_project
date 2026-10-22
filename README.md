@@ -58,6 +58,10 @@ After compiling the project, you can launch the interactive terminal application
 
 ## Visual Results & Comparison
 
-### 1 to 1 real steamhappy and steamhappy using this svg editor
+### Absolute 1 to 1 real steamhappy and steamhappy using this svg editor
 
-![Original](assets/real_steamhappy.webp) ![Rendu C](assets/steamhappy_svg_editor.png)
+Real steamhappy:
+![Original](assets/real_steamhappy.webp) 
+
+My steamhappy:
+![Rendu C](assets/steamhappy_svg_editor.png)
