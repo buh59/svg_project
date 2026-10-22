@@ -71,7 +71,10 @@ void print_recursive(shape_t *node, int depth) {
                          "  | 🔍 Global Scale: x%.2f\n" RESET,
            node->id, sc);
     print_recursive(node->data.group.head, depth + 1);
-  }
+  } else if (node->type == PATH)
+    printf(C_WHITE "├── ∿ [%d] Path     " RESET "  | d=\"%s\" " C_YELLOW
+                   "🔍 x%.2f" RESET " | 🖌️ S:%s\n",
+           node->id, node->data.path.d, sc, st);
   print_recursive(node->next, depth);
 }
 
@@ -182,6 +185,78 @@ void print_dashboard(scene_t *scene) {
                 "───────────────────\n" RESET);
 }
 
+char *build_path(void) {
+  char buffer[2048] = "";
+  char step[256];
+
+  int x = ask_int("MoveTo (M)", "X initial", C_CYAN);
+  int y = ask_int("MoveTo (M)", "Y initial", C_CYAN);
+  snprintf(buffer, sizeof(buffer), "M %d %d", x, y);
+
+  bool building = true;
+  while (building) {
+    printf("\nPath actuel : %s\n", buffer);
+    printf("1. LineTo (L)\n2. Horiz/Vert (H/V)\n3. Bézier Cubique (C)\n4. "
+           "Bézier Quadratique (Q)\n5. Arc elliptique (A)\n6. ClosePath "
+           "(Z)\n0. Terminer\n");
+    int choice = ask_int("Commande", "Choix", C_YELLOW);
+
+    switch (choice) {
+    case 1: {
+      int lx = ask_int("LineTo", "X", C_CYAN),
+          ly = ask_int("LineTo", "Y", C_CYAN);
+      snprintf(step, sizeof(step), " L %d %d", lx, ly);
+      strcat(buffer, step);
+      break;
+    }
+    case 2: {
+      int sub = ask_int("1: Horizontal (H) | 2: Vertical (V)", "Type", C_CYAN);
+      int val = ask_int("Valeur", "Coord", C_CYAN);
+      snprintf(step, sizeof(step), sub == 1 ? " H %d" : " V %d", val);
+      strcat(buffer, step);
+      break;
+    }
+    case 3: {
+      int x1 = ask_int("Ctrl 1", "X", C_CYAN),
+          y1 = ask_int("Ctrl 1", "Y", C_CYAN);
+      int x2 = ask_int("Ctrl 2", "X", C_CYAN),
+          y2 = ask_int("Ctrl 2", "Y", C_CYAN);
+      int ex = ask_int("Dest", "X", C_CYAN), ey = ask_int("Dest", "Y", C_CYAN);
+      snprintf(step, sizeof(step), " C %d %d, %d %d, %d %d", x1, y1, x2, y2, ex,
+               ey);
+      strcat(buffer, step);
+      break;
+    }
+    case 4: {
+      int qx = ask_int("Ctrl", "X", C_CYAN), qy = ask_int("Ctrl", "Y", C_CYAN);
+      int ex = ask_int("Dest", "X", C_CYAN), ey = ask_int("Dest", "Y", C_CYAN);
+      snprintf(step, sizeof(step), " Q %d %d, %d %d", qx, qy, ex, ey);
+      strcat(buffer, step);
+      break;
+    }
+    case 5: {
+      int rx = ask_int("Arc", "Rayon X", C_CYAN),
+          ry = ask_int("Arc", "Rayon Y", C_CYAN);
+      int rot = ask_int("Arc", "Rotation (deg)", C_CYAN);
+      int ex = ask_int("Dest", "X", C_CYAN), ey = ask_int("Dest", "Y", C_CYAN);
+      snprintf(step, sizeof(step), " A %d %d %d 0 1 %d %d", rx, ry, rot, ex,
+               ey);
+      strcat(buffer, step);
+      break;
+    }
+    case 6:
+      strcat(buffer, " Z");
+      building = false;
+      break;
+    case 0:
+    default:
+      building = false;
+      break;
+    }
+  }
+  return strdup(buffer);
+}
+
 void page_create(scene_t *scene) {
   system("clear");
   printf(C_GREEN BOLD
@@ -197,17 +272,19 @@ void page_create(scene_t *scene) {
   printf(C_GREEN
          "│" RESET
          "  [3] ⚪ Circle        [6] 📈 Polyline    [9] 😃 Steamhappy\n");
+  printf(C_GREEN "│" RESET "  [10] ∿ Path\n");
   printf(
       C_GREEN
       "╰─────────────────────────────────────────────────────────────\n" RESET);
 
   int type = ask_int("Which shape do you want to create?",
                      "Enter a number between 1 and 9", C_GREEN);
-  if (type < 1 || type > 9)
+  if (type < 1 || type > 10)
     return;
 
   int p1 = 0, p2 = 0, p3 = 0, p4 = 0;
   char stroke[32] = "black", fill[32] = "none";
+  char *path_d = NULL;
 
   printf(C_CYAN "\n  📍 COORDINATES SETUP\n  ────────────────────\n" RESET);
 
@@ -249,9 +326,11 @@ void page_create(scene_t *scene) {
     p1 = ask_int("Center X position", "Horizontal center", C_CYAN);
     p2 = ask_int("Center Y position", "Vertical center", C_CYAN);
     p3 = ask_int("Smiley Size", "Reference size in pixels (e.g. 100)", C_CYAN);
+  } else if (type == 10) {
+    path_d = build_path();
   }
 
-  if (type >= 1 && type <= 7) {
+  if ((type >= 1 && type <= 7) || type == 10) {
     printf(C_MAGENTA "\n  🎨 COLORS SETUP\n  ───────────────\n" RESET);
     ask_string("Stroke color", "English keyword (e.g., black, red) or HEX code",
                stroke, 32, C_MAGENTA);
@@ -280,6 +359,10 @@ void page_create(scene_t *scene) {
     s = create_group(scene);
   else if (type == 9)
     s = create_steamhappy(scene, p1, p2, p3);
+  else if (type == 10) {
+    s = create_path(scene, path_d, stroke, fill);
+    free(path_d);
+  }
 
   if (s)
     add_shape_to_scene(scene, s);

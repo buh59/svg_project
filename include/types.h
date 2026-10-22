@@ -14,7 +14,8 @@ typedef enum {
   LINE,
   POLYLINE,
   POLYGON,
-  GROUP
+  GROUP,
+  PATH
 } shape_type_t;
 
 /**
@@ -87,6 +88,9 @@ typedef struct shape_s {
       struct shape_s *head;
       struct shape_s *tail;
     } group;
+    struct {
+      char *d;
+    } path;
   } data;
 
   transformation_t transform;

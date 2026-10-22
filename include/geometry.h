@@ -102,13 +102,25 @@ shape_t *create_point_list_shape(scene_t *scene, shape_type_t type,
 bool add_point(shape_t *shape, int x, int y);
 
 /**
- * @brief Crée une forme complexe "Steamhappy" sous forme de groupe d'ellipses.
- * @param scene Pointeur vers la scène.
- * @param cx Position X du centre.
- * @param cy Position Y du centre.
- * @param size Taille/rayon de référence en pixels (ex: 100).
- * @return Pointeur vers le groupe créé.
+ * @brief Creates a complex "Steamhappy" shape as a group of ellipses.
+ * @param scene Pointer to the scene context.
+ * @param cx The X coordinate of the center.
+ * @param cy The Y coordinate of the center.
+ * @param size Reference size/radius in pixels (e.g., 100).
+ * @return shape_t* A pointer to the created group.
  */
 shape_t *create_steamhappy(scene_t *scene, int cx, int cy, int size);
 
+/**
+ * @brief Creates and inserts an SVG PATH shape into the scene.
+ *
+ * Allocates memory for the structure and duplicates the command string `d`.
+ *
+ * @param sc Pointer to the current scene.
+ * @param d SVG command string (e.g., "M 10 10 L 50 50 Z").
+ * @param stroke Stroke color (or "" / "none").
+ * @param fill Fill color (or "" / "none").
+ * @return shape_t* A pointer to the created shape, or NULL on allocation error.
+ */
+shape_t *create_path(scene_t *sc, char *d, char *stroke, char *fill);
 #endif

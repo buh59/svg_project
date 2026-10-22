@@ -66,6 +66,13 @@ void print_dashboard(scene_t *scene);
 void print_options(void);
 
 /**
+ * @brief Interactively builds an SVG path string through user prompts.
+ * @return char* A dynamically allocated string containing the path commands.
+ * Must be freed by the caller or attached to a shape.
+ */
+char *build_path(void);
+
+/**
  * @brief Handles the user interface and logic for creating a new shape.
  * @param scene Pointer to the current scene where the shape will be added.
  */

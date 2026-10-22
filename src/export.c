@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-static const char *paint(const char *c) { return c[0] ? c : "none"; }
+static const char *or_none(const char *c) { return c[0] ? c : "none"; }
 
 static void write_transform(FILE *f, const shape_t *shape) {
   float sx = (shape->transform.invert_x ? -1.0f : 1.0f) *
@@ -58,8 +58,8 @@ static void export_shape(const shape_t *shape, FILE *f, int depth) {
             "<rect x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" "
             "fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
             shape->data.rect.x, shape->data.rect.y, shape->data.rect.width,
-            shape->data.rect.height, paint(shape->style.color_fill),
-            paint(shape->style.color_stroke));
+            shape->data.rect.height, or_none(shape->style.color_fill),
+            or_none(shape->style.color_stroke));
     write_transform(f, shape);
     fprintf(f, " />\n");
     break;
@@ -68,7 +68,8 @@ static void export_shape(const shape_t *shape, FILE *f, int depth) {
             "<circle cx=\"%d\" cy=\"%d\" r=\"%d\" "
             "fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
             shape->data.circle.cx, shape->data.circle.cy, shape->data.circle.r,
-            paint(shape->style.color_fill), paint(shape->style.color_stroke));
+            or_none(shape->style.color_fill),
+            or_none(shape->style.color_stroke));
     write_transform(f, shape);
     fprintf(f, " />\n");
     break;
@@ -78,7 +79,8 @@ static void export_shape(const shape_t *shape, FILE *f, int depth) {
             "fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
             shape->data.ellipse.cx, shape->data.ellipse.cy,
             shape->data.ellipse.rx, shape->data.ellipse.ry,
-            paint(shape->style.color_fill), paint(shape->style.color_stroke));
+            or_none(shape->style.color_fill),
+            or_none(shape->style.color_stroke));
     write_transform(f, shape);
     fprintf(f, " />\n");
     break;
@@ -87,7 +89,14 @@ static void export_shape(const shape_t *shape, FILE *f, int depth) {
             "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" "
             "stroke=\"%s\" stroke-width=\"3\" ",
             shape->data.line.p1.x, shape->data.line.p1.y, shape->data.line.p2.x,
-            shape->data.line.p2.y, paint(shape->style.color_stroke));
+            shape->data.line.p2.y, or_none(shape->style.color_stroke));
+    write_transform(f, shape);
+    fprintf(f, " />\n");
+    break;
+  case PATH:
+    fprintf(f, "  <path d=\"%s\" stroke=\"%s\" fill=\"%s\" ",
+            shape->data.path.d, or_none(shape->style.color_stroke),
+            or_none(shape->style.color_fill));
     write_transform(f, shape);
     fprintf(f, " />\n");
     break;
@@ -99,7 +108,8 @@ static void export_shape(const shape_t *shape, FILE *f, int depth) {
          pt = pt->next)
       fprintf(f, "%d,%d ", pt->p.x, pt->p.y);
     fprintf(f, "\" fill=\"%s\" stroke=\"%s\" stroke-width=\"3\" ",
-            paint(shape->style.color_fill), paint(shape->style.color_stroke));
+            or_none(shape->style.color_fill),
+            or_none(shape->style.color_stroke));
     write_transform(f, shape);
     fprintf(f, " />\n");
     break;

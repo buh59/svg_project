@@ -42,6 +42,8 @@ void free_shape(shape_t *shape) {
     }
     shape->data.point_list.head = NULL;
     shape->data.point_list.tail = NULL;
+  } else if (shape->type == PATH) {
+    free(shape->data.path.d);
   }
 
   free(shape);

@@ -52,6 +52,10 @@ static void save_shape(const shape_t *s, FILE *f) {
             s->data.line.p1.y, s->data.line.p2.x, s->data.line.p2.y);
     write_tail(f, s);
     break;
+  case PATH:
+    fprintf(f, "PATH %d \"%s\"", s->id, s->data.path.d);
+    write_tail(f, s); // Écrit la suite : stroke fill mx my angle ix iy scale
+    break;
   case POLYLINE:
   case POLYGON: {
 
@@ -267,6 +271,25 @@ scene_t *load_project(const char *filename) {
       load_poly(sc, stack, depth, POLYLINE, line + 8);
     } else if (strncmp(line, "POLYGON ", 8) == 0) {
       load_poly(sc, stack, depth, POLYGON, line + 7);
+    } else if (strncmp(line, "PATH ", 5) == 0) {
+      int id;
+      if (sscanf(line, "PATH %d", &id) == 1) {
+        char *start = strchr(line + 5, '"');
+        if (start) {
+          start++;
+
+          char *end = strchr(start, '"');
+          if (end) {
+            *end = '\0';
+
+            tail_t t;
+            if (parse_tail(end + 1, &t)) {
+              shape_t *p = create_path(sc, start, t.stroke, t.fill);
+              finish(sc, stack, depth, p, id, &t);
+            }
+          }
+        }
+      }
     }
   }
 
