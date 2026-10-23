@@ -1,0 +1,5 @@
+*.svg
+*.mysvg
+editor_svg
+*.md
+obj/
