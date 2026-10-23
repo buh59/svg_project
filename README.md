@@ -6,7 +6,7 @@ A lightweight, terminal-based vector graphics editor and renderer written in C99
 
 ## What it does
 
-- Manages 2D scenes using shapes (Rectangles, Squares, Circles, Ellipses, Lines, Polylines, Polygons)
+- Manages 2D scenes using shapes (Rectangles, Squares, Circles, Ellipses, Lines, Polylines, Polygons and Paths)
 
 - Applies cascading transformations (translation, rotation, scaling, and horizontal/vertical flips) across groups
 
